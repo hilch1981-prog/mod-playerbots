@@ -2,19 +2,24 @@
 
 Target: World of Warcraft: Mists of Pandaria 5.4.8 (Build 18414)
 
-## Project hub
+## Project Source of Truth
 
 - Repository: `hilch1981-prog/mod-playerbots`
 - Branch: `mop-5.4.8-v2`
-- Role: primary PlayerBot V2 development hub, documentation, porting work and feature tracking.
+- Role: **canonical PlayerBot V2 project hub**, module source, architecture/docs, project Issues, POC/feature tracking, validation tracking and releases.
+- Governance: [`PROJECT_GOVERNANCE.md`](PROJECT_GOVERNANCE.md)
 
-## Runtime core
+**Rule:** when deciding where a PlayerBot V2 Issue, feature, design note, POC status or module change belongs, use this repository unless an explicit governance/ADR change says otherwise.
+
+## Runtime Core Source of Truth
 
 - Repository: `hilch1981-prog/MOP_V2_Repack`
 - Runtime baseline branch: `repack-main`
 - Frozen baseline commit: `0739d072f8f1f42523f04cca4b2607d88a01def4`
 - Integration branch: `playerbot-v2-poc`
-- Role: final runtime Core source of truth, build target and regression environment.
+- Role: final Chipa MoP 5.4.8 runtime Core API, compile/boot/game target and human-player regression environment.
+
+**Important:** runtime Core Source of Truth does not mean PlayerBot project hub. Core PRs are integration artifacts and should be linked from the owning Issue in `hilch1981-prog/mod-playerbots`.
 
 ## Primary MoP implementation donor
 
@@ -44,10 +49,11 @@ Target: World of Warcraft: Mists of Pandaria 5.4.8 (Build 18414)
 
 ## Source hierarchy
 
-1. What must the final code run against? → `MOP_V2_Repack`
-2. How should a feature be implemented for MoP 5.4.8? → DigiD702 first
-3. What should PlayerBot be capable of? → official `mod-playerbots`
-4. What historical MoP solutions can be compared? → PR #389
+1. Where is PlayerBot V2 developed, documented and tracked? → `hilch1981-prog/mod-playerbots / mop-5.4.8-v2`
+2. What must final code run against? → `MOP_V2_Repack`
+3. How should a feature be implemented for MoP 5.4.8? → DigiD702 first
+4. What should PlayerBot be capable of? → official `mod-playerbots`
+5. What historical MoP solutions can be compared? → PR #389
 
 ## Provenance rule
 
