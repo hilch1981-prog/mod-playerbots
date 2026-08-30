@@ -4,19 +4,24 @@ Target: World of Warcraft: Mists of Pandaria 5.4.8 (Build 18414)
 
 This directory is the documentation entry point for the `mop-5.4.8-v2` development branch.
 
+> **Canonical project hub:** `hilch1981-prog/mod-playerbots / mop-5.4.8-v2`  
+> **Project Issues, feature tracking, architecture, POC tracking and PlayerBot source belong here by default.**  
+> `MOP_V2_Repack` is the runtime/integration Core target only.
+
 ## Architecture status
 
 - Architecture v0.1: **complete (8/8 parts)**
 - Architecture decisions: **ADR-001 ~ ADR-180**
 - Open architecture items: **AO-001 ~ AO-050**
 - POC specification: **complete / ready for implementation**
-- Current phase: **POC implementation preparation**
+- Current phase: **POC-G1 implementation / build validation**
 - First POC target: **SelfBot + Monk Windwalker**
 
 ## Documents
 
 | Document | Purpose |
 |---|---|
+| [`PROJECT_GOVERNANCE.md`](PROJECT_GOVERNANCE.md) | **Mandatory repository/Issue/PR ownership policy; fixes `mod-playerbots` as the canonical project hub** |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Architecture v0.1 baseline: Core/Module boundary, lifecycle, compatibility, AI, DB, advanced systems, validation and release model |
 | [`SOURCE_POLICY.md`](SOURCE_POLICY.md) | Rules for using Chipa, DigiD702, official PlayerBots and LoA PR #389 |
 | [`SOURCE_BASELINE.md`](SOURCE_BASELINE.md) | Pinned repositories, branches and commit SHAs |
@@ -30,19 +35,25 @@ This directory is the documentation entry point for the `mop-5.4.8-v2` developme
 
 ## Repository roles
 
-- **Main PlayerBot V2 project hub:** `hilch1981-prog/mod-playerbots` / `mop-5.4.8-v2`
-- **Runtime/integration Core:** `hilch1981-prog/MOP_V2_Repack` / `playerbot-v2-poc`
+- **Canonical PlayerBot V2 project hub:** `hilch1981-prog/mod-playerbots` / `mop-5.4.8-v2`
+- **Runtime/integration Core only:** `hilch1981-prog/MOP_V2_Repack` / `playerbot-v2-poc`
 - **Primary MoP implementation donor:** `DigiD702/mod-playerbots`
 - **Generic PlayerBot AI/feature donor:** `mod-playerbots/mod-playerbots`
 - **MoP Core bridge reference:** `DigiD702/skyfire_548_playerbots`
 - **Historical MoP port reference:** Legends of Azeroth PR #389
+
+### Issue ownership rule
+
+All PlayerBot V2 project Issues are created in `hilch1981-prog/mod-playerbots` unless an explicit governance/ADR change says otherwise.
+
+Core changes may have a `MOP_V2_Repack` PR, but the corresponding PlayerBot Issue remains the canonical tracking item.
 
 ## Implementation sequence
 
 1. Source baseline frozen ✅
 2. Architecture v0.1 frozen ✅
 3. `POC_SPEC.md` complete ✅
-4. Generic Module Loader
+4. Generic Module Loader — source integration in progress / build validation pending
 5. PlayerScript `OnUpdate` bridge
 6. SelfBot attach/detach
 7. Monk Windwalker minimal rotation
@@ -73,7 +84,8 @@ Explicitly excluded from the first POC:
 
 ## Non-negotiable rules
 
-- `MOP_V2_Repack` remains the final runtime Core source of truth.
+- `hilch1981-prog/mod-playerbots / mop-5.4.8-v2` is the PlayerBot V2 project Source of Truth.
+- `MOP_V2_Repack` remains the final runtime Core Source of Truth, not the project-management hub.
 - PlayerBot AI and class/spec logic must not move into Core.
 - Core changes are limited to generic infrastructure bridges.
 - External projects are donors/references; no wholesale PR #389/Digi/AzerothCore merge.
