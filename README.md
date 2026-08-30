@@ -1,104 +1,90 @@
-# 🚧 MoP 5.4.8 PlayerBot V2 Development
+# Chipa PlayerBot V2 — MoP 5.4.8 Build 18414
 
-> **Looking for the Mists of Pandaria 5.4.8 PlayerBot port?**  
-> Active development is being done in **[hilch1981-prog/MOP_V2_Repack](https://github.com/hilch1981-prog/MOP_V2_Repack)** on the **[`playerbot-v2-poc`](https://github.com/hilch1981-prog/MOP_V2_Repack/tree/playerbot-v2-poc)** branch.
->
-> - Target: **World of Warcraft: Mists of Pandaria 5.4.8 (Build 18414)**
-> - Bootstrap / tracking PR: **[MOP_V2_Repack PR #1 — PlayerBot V2 POC source baseline](https://github.com/hilch1981-prog/MOP_V2_Repack/pull/1)**
-> - Source baseline: **[`docs/playerbots/SOURCE_BASELINE.md`](https://github.com/hilch1981-prog/MOP_V2_Repack/blob/playerbot-v2-poc/docs/playerbots/SOURCE_BASELINE.md)**
-> - Primary MoP implementation donor: **[DigiD702/mod-playerbots](https://github.com/DigiD702/mod-playerbots)**
-> - Generic AI / feature reference: **[mod-playerbots/mod-playerbots](https://github.com/mod-playerbots/mod-playerbots)**
-> - Historical MoP port reference: **[Legends of Azeroth PR #389](https://github.com/Legends-of-Azeroth/Legends-of-Azeroth-Pandaria-5.4.8/pull/389)**
->
-> **Important:** this repository is still a fork of the official AzerothCore `mod-playerbots` project and is kept as an upstream/reference fork. It is **not** the MoP 5.4.8 runtime module. The MoP V2 implementation and integration work lives in `MOP_V2_Repack`.
+This branch is the **main development hub** for the Chipa PlayerBot V2 project targeting **World of Warcraft: Mists of Pandaria 5.4.8 (Build 18414)**.
 
-### 한국어 안내
+> **Primary development repository:** `hilch1981-prog/mod-playerbots`  
+> **Primary development branch:** `mop-5.4.8-v2`  
+> **Runtime / integration core:** [`hilch1981-prog/MOP_V2_Repack`](https://github.com/hilch1981-prog/MOP_V2_Repack)  
+> **Core integration branch:** [`playerbot-v2-poc`](https://github.com/hilch1981-prog/MOP_V2_Repack/tree/playerbot-v2-poc)
 
-**판다리아의 안개 5.4.8 PlayerBot V2 개발을 찾으셨다면** 위의 `MOP_V2_Repack / playerbot-v2-poc` 브랜치로 이동해 주세요. 이 저장소는 공식 AzerothCore PlayerBots 참고용 포크로 유지하며, 실제 MoP 5.4.8 통합 개발은 `MOP_V2_Repack`에서 진행합니다.
+## Project status
+
+- Architecture v0.1: **complete — 8/8 parts**
+- Architecture decisions: **ADR-001 ~ ADR-180**
+- Open architecture items: **AO-001 ~ AO-050**
+- Current phase: **POC preparation**
+- First POC target: **SelfBot + Monk Windwalker**
+
+## Repository roles
+
+| Repository | Role |
+|---|---|
+| **`hilch1981-prog/mod-playerbots` / `mop-5.4.8-v2`** | **Main PlayerBot V2 project hub and module development branch** |
+| `hilch1981-prog/MOP_V2_Repack` / `playerbot-v2-poc` | Chipa MoP 5.4.8 runtime core integration, build and regression validation |
+| `DigiD702/mod-playerbots` / `main` | Primary MoP 5.4.8 implementation donor: SelfBot, Monk, rotations, MoP AI behavior |
+| `mod-playerbots/mod-playerbots` / `master` | Generic PlayerBot AI/features upstream reference |
+| `DigiD702/skyfire_548_playerbots` | MoP core-hook reference for socketless sessions, bot login and teleport completion |
+| Legends of Azeroth PR #389 | Historical MoP port/reference only |
+
+## Development rules
+
+1. `MOP_V2_Repack` remains the **runtime Core source of truth**.
+2. PlayerBot AI, rotations, lifecycle policy and feature logic belong in this module project.
+3. Core changes must be minimal infrastructure bridges only.
+4. External source is ported **feature-by-feature**, never by wholesale merge.
+5. WotLK spell IDs, talents, opcodes and datasets are not accepted without MoP 5.4.8 validation.
+6. SelfBot and ManagedBot share AI/rotation; lifecycle and control ownership differ.
+7. MoP class AI is tracked by **11 classes / 34 specializations**.
+8. Source presence is not completion: build, runtime, game and regression evidence are required.
+
+## Initial POC gates
+
+1. Generic module registration
+2. PlayerScript `OnUpdate` → PlayerBot manager bridge
+3. SelfBot attach / detach
+4. Monk Windwalker minimal combat rotation
+5. Human-player regression verification
+
+The first POC intentionally excludes RandomBot, Travel, full Quest AI, LFG, Raid, Battleground and the full 34-spec rollout.
+
+## Source baseline
+
+The first frozen MoP donor baseline is:
+
+- DigiD702/mod-playerbots
+- branch: `main`
+- commit: `13bc0ffa93c6b6625ed28fe2a03e0c071215ff48`
+
+The Chipa runtime baseline used when the POC integration branch was created is:
+
+- hilch1981-prog/MOP_V2_Repack
+- branch: `repack-main`
+- commit: `0739d072f8f1f42523f04cca4b2607d88a01def4`
+
+See [`docs/playerbots/SOURCE_BASELINE.md`](docs/playerbots/SOURCE_BASELINE.md) for the full source policy.
+
+## Core integration tracking
+
+The runtime-core bootstrap is tracked in:
+
+- [`MOP_V2_Repack PR #1 — Bootstrap PlayerBot V2 POC source baseline`](https://github.com/hilch1981-prog/MOP_V2_Repack/pull/1)
+
+That PR is intentionally separated from feature implementation.
+
+## 한국어 안내
+
+이 브랜치가 **치파 PlayerBot V2의 메인 개발 허브**입니다.
+
+- 실제 PlayerBot 기능 개발·설계·포팅 추적: **이 저장소 `mop-5.4.8-v2`**
+- 치파팩 Core 적용·컴파일·실행·회귀 테스트: **`MOP_V2_Repack / playerbot-v2-poc`**
+- MoP 구현 1차 참고: **DigiD702/mod-playerbots**
+- 범용 PlayerBot 기능 참고: **공식 mod-playerbots**
+- PR #389: 과거 MoP 포팅 비교 자료
+
+즉 다른 개발자는 앞으로 이 저장소를 PlayerBot V2 프로젝트의 시작점으로 보면 됩니다.
 
 ---
 
-<p align="center">
-    <a href="https://github.com/mod-playerbots/mod-playerbots/blob/master/README.md">English</a>
-    |
-    <a href="https://github.com/mod-playerbots/mod-playerbots/blob/master/README_CN.md">中文</a>
-    |
-    <a href="https://github.com/mod-playerbots/mod-playerbots/blob/master/README_ES.md">Español</a>
-</p>
+## Upstream acknowledgement
 
-
-<div align="center">
-  <img src="banner.png" alt="Playerbots Banner" width="700px">
-</div>
-
-<div align="center">
-    <img src="https://github.com/mod-playerbots/mod-playerbots/actions/workflows/macos_build.yml/badge.svg">
-    <img src="https://github.com/mod-playerbots/mod-playerbots/actions/workflows/core_build.yml/badge.svg">
-    <img src="https://github.com/mod-playerbots/mod-playerbots/actions/workflows/windows_build.yml/badge.svg">
-</div>
-
-# Playerbots Module
-`mod-playerbots` is an [AzerothCore](https://www.azerothcore.org/) module that adds player-like bots to a server. The project is based off [IKE3's Playerbots](https://github.com/ike3/mangosbot).
-
-Features include:
-
-- The ability to log in alt characters as bots, allowing players to interact with their other characters, form parties, level up, and more
-- Random bots that wander through the world, complete quests, and otherwise behave like players, simulating the MMO experience
-- Bots capable of running most raids and battlegrounds
-- Highly configurable settings to define how bots behave
-- Excellent performance, even when running thousands of bots
-
-We also have a **[Discord server](https://discord.gg/NQm5QShwf9)** where you can discuss the project, ask questions, and get involved in the community!
-
-## Installation
-
-Supported platforms are Ubuntu, Windows, and macOS. Other Linux distributions may work, but may not receive support.
-
-> **Important:** All `mod-playerbots` installations require a custom fork of AzerothCore: [mod-playerbots/azerothcore-wotlk (Playerbot branch)](https://github.com/mod-playerbots/azerothcore-wotlk/tree/Playerbot). The standard AzerothCore repository will **not** work.
-
-### Quick Start
-
-```bash
-git clone https://github.com/mod-playerbots/azerothcore-wotlk.git --branch=Playerbot
-cd azerothcore-wotlk/modules
-git clone https://github.com/mod-playerbots/mod-playerbots.git --branch=master
-```
-
-Then build the server following the platform-specific instructions in our **[Installation Guide](https://github.com/mod-playerbots/mod-playerbots/wiki/Installation-Guide)**.
-
-> **Testing branch:** A `test-staging` branch is available with the latest features and fixes before they are merged into `master`. To use it, clone with `--branch=test-staging` instead. Note that this branch may contain unstable or breaking changes — use it at your own risk and only if you are comfortable troubleshooting issues.
-
-### Detailed Guides
-
-| Guide | Description |
-|---|---|
-| **[Installation Guide](https://github.com/mod-playerbots/mod-playerbots/wiki/Installation-Guide)** | Full step-by-step instructions for clean installs, migrating from existing AzerothCore, Docker setup, adding modules, and updating |
-| **[Troubleshooting](https://github.com/mod-playerbots/mod-playerbots/wiki/Troubleshooting)** | Solutions to the most common build errors, database issues, configuration mistakes, crashes, and platform-specific problems |
-
-For additional references, see the [AzerothCore Installation Guide](https://www.azerothcore.org/wiki/installation) and [Installing a Module](https://www.azerothcore.org/wiki/installing-a-module) pages.
-
-## Documentation
-
-The [Playerbots Wiki](https://github.com/mod-playerbots/mod-playerbots/wiki) contains an extensive overview of AddOns, commands, raids with programmed bot strategies, and recommended performance configurations. Please note that documentation may be incomplete or out-of-date in some sections, and contributions are welcome.
-
-Bots are controlled via chat commands. For larger bot groups, this can be cumbersome. Because of this, community members have developed client AddOns to allow controlling bots through the in-game UI. We recommend you check out their projects listed in the [AddOns and Submodules](https://github.com/mod-playerbots/mod-playerbots/wiki/Playerbot-Addons-and-Sub%E2%80%90Modules) page.
-
-## Contributing
-
-This project is still under development. We encourage anyone to make contributions, anything from pull requests to reporting issues. If you encounter any errors or experience crashes, we encourage you [report them as GitHub issues](https://github.com/mod-playerbots/mod-playerbots/issues/new?template=bug_report.md). Your valuable feedback will help us improve this project collaboratively.
-
-If you make coding contributions, `mod-playerbots` complies with the [C++ Code Standards](https://www.azerothcore.org/wiki/cpp-code-standards) established by AzerothCore. Each Pull Request must include all test scenarios the author performed, along with their results, to demonstrate that the changes were properly verified.
-
-We recommend joining the [Discord server](https://discord.gg/NQm5QShwf9) to make your contributions to the project easier, as a lot of active support is carried out through this server.
-
-Please click on the "⭐" button to stay up to date and help us gain more visibility on GitHub!
-
-## Acknowledgements
-
-`mod-playerbots` is based on [ZhengPeiRu21/mod-playerbots](https://github.com/ZhengPeiRu21/mod-playerbots) and [celguar/mangosbot-bots](https://github.com/celguar/mangosbot-bots). We extend our gratitude to [@ZhengPeiRu21](https://github.com/ZhengPeiRu21) and [@celguar](https://github.com/celguar) for their continued efforts in maintaining the module.
-
-Also, a thank you to the many contributors who've helped build this project:
-
-<a href="https://github.com/mod-playerbots/mod-playerbots/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=mod-playerbots/mod-playerbots" />
-</a>
+This repository originated as a fork of the official [`mod-playerbots/mod-playerbots`](https://github.com/mod-playerbots/mod-playerbots) project. The original `master` branch is retained as an upstream/reference line. The `mop-5.4.8-v2` branch is the Chipa MoP 5.4.8 adaptation line.
