@@ -1,3 +1,23 @@
+# 🚧 MoP 5.4.8 PlayerBot V2 Development
+
+> **Looking for the Mists of Pandaria 5.4.8 PlayerBot port?**  
+> Active development is being done in **[hilch1981-prog/MOP_V2_Repack](https://github.com/hilch1981-prog/MOP_V2_Repack)** on the **[`playerbot-v2-poc`](https://github.com/hilch1981-prog/MOP_V2_Repack/tree/playerbot-v2-poc)** branch.
+>
+> - Target: **World of Warcraft: Mists of Pandaria 5.4.8 (Build 18414)**
+> - Bootstrap / tracking PR: **[MOP_V2_Repack PR #1 — PlayerBot V2 POC source baseline](https://github.com/hilch1981-prog/MOP_V2_Repack/pull/1)**
+> - Source baseline: **[`docs/playerbots/SOURCE_BASELINE.md`](https://github.com/hilch1981-prog/MOP_V2_Repack/blob/playerbot-v2-poc/docs/playerbots/SOURCE_BASELINE.md)**
+> - Primary MoP implementation donor: **[DigiD702/mod-playerbots](https://github.com/DigiD702/mod-playerbots)**
+> - Generic AI / feature reference: **[mod-playerbots/mod-playerbots](https://github.com/mod-playerbots/mod-playerbots)**
+> - Historical MoP port reference: **[Legends of Azeroth PR #389](https://github.com/Legends-of-Azeroth/Legends-of-Azeroth-Pandaria-5.4.8/pull/389)**
+>
+> **Important:** this repository is still a fork of the official AzerothCore `mod-playerbots` project and is kept as an upstream/reference fork. It is **not** the MoP 5.4.8 runtime module. The MoP V2 implementation and integration work lives in `MOP_V2_Repack`.
+
+### 한국어 안내
+
+**판다리아의 안개 5.4.8 PlayerBot V2 개발을 찾으셨다면** 위의 `MOP_V2_Repack / playerbot-v2-poc` 브랜치로 이동해 주세요. 이 저장소는 공식 AzerothCore PlayerBots 참고용 포크로 유지하며, 실제 MoP 5.4.8 통합 개발은 `MOP_V2_Repack`에서 진행합니다.
+
+---
+
 <p align="center">
     <a href="https://github.com/mod-playerbots/mod-playerbots/blob/master/README.md">English</a>
     |
