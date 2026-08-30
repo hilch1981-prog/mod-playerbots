@@ -9,7 +9,9 @@ This directory is the documentation entry point for the `mop-5.4.8-v2` developme
 - Architecture v0.1: **complete (8/8 parts)**
 - Architecture decisions: **ADR-001 ~ ADR-180**
 - Open architecture items: **AO-001 ~ AO-050**
-- Current phase: **architecture baseline frozen; POC specification next**
+- POC specification: **complete / ready for implementation**
+- Current phase: **POC implementation preparation**
+- First POC target: **SelfBot + Monk Windwalker**
 
 ## Documents
 
@@ -23,6 +25,8 @@ This directory is the documentation entry point for the `mop-5.4.8-v2` developme
 | [`DATABASE.md`](DATABASE.md) | DB, Config, dataset, cache, migration and provenance architecture |
 | [`TEST_MATRIX.md`](TEST_MATRIX.md) | V0~V9 verification model, POC gates, regression and performance gates |
 | [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) | Architecture open issues and currently unverified areas |
+| [`ADR_INDEX.md`](ADR_INDEX.md) | ADR-001 ~ ADR-180 architecture decision index |
+| [`POC_SPEC.md`](POC_SPEC.md) | Executable first POC scope: generic module loader, SelfBot attach/detach, Windwalker vertical slice, PASS/FAIL and rollback |
 
 ## Repository roles
 
@@ -33,16 +37,39 @@ This directory is the documentation entry point for the `mop-5.4.8-v2` developme
 - **MoP Core bridge reference:** `DigiD702/skyfire_548_playerbots`
 - **Historical MoP port reference:** Legends of Azeroth PR #389
 
-## Next implementation sequence
+## Implementation sequence
 
-1. Freeze source baseline
-2. Write `POC_SPEC.md`
-3. Generic Module Loader
-4. PlayerScript `OnUpdate` bridge
-5. SelfBot attach/detach
-6. Monk Windwalker minimal rotation
-7. Human-player regression
-8. If POC passes: `PORTING_PLAN.md` → `IMPLEMENTATION_PLAN.md` → `SCHEDULE.md`
+1. Source baseline frozen ✅
+2. Architecture v0.1 frozen ✅
+3. `POC_SPEC.md` complete ✅
+4. Generic Module Loader
+5. PlayerScript `OnUpdate` bridge
+6. SelfBot attach/detach
+7. Monk Windwalker minimal rotation
+8. Human-player regression
+9. If POC passes: `PORTING_PLAN.md` → `IMPLEMENTATION_PLAN.md` → `SCHEDULE.md`
+
+## First POC boundaries
+
+Included:
+
+- generic optional module infrastructure
+- minimal integration and compatibility layer
+- SelfBot CAST_ONLY control model
+- Monk Windwalker minimal combat vertical slice
+- normal-human regression and module-disable validation
+
+Explicitly excluded from the first POC:
+
+- RandomBot
+- socketless ManagedBot login
+- PlayerBot DB
+- Travel
+- full Quest AI
+- LFG/LFR
+- Dungeon/Raid/PvP rollout
+- all 34 specializations
+- large-scale performance testing
 
 ## Non-negotiable rules
 
