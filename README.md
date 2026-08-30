@@ -1,20 +1,28 @@
-# 🚧 MoP 5.4.8 PlayerBot V2 Development
+# 🚧 Chipa MoP 5.4.8 PlayerBot V2
 
-> **Looking for the Mists of Pandaria 5.4.8 PlayerBot port?**  
-> Active development is being done in **[hilch1981-prog/MOP_V2_Repack](https://github.com/hilch1981-prog/MOP_V2_Repack)** on the **[`playerbot-v2-poc`](https://github.com/hilch1981-prog/MOP_V2_Repack/tree/playerbot-v2-poc)** branch.
+> **This repository is now the main public entry point for the Chipa MoP 5.4.8 PlayerBot V2 project.**  
+> Active MoP development is on the **[`mop-5.4.8-v2`](https://github.com/hilch1981-prog/mod-playerbots/tree/mop-5.4.8-v2)** branch of this repository.
 >
 > - Target: **World of Warcraft: Mists of Pandaria 5.4.8 (Build 18414)**
-> - Bootstrap / tracking PR: **[MOP_V2_Repack PR #1 — PlayerBot V2 POC source baseline](https://github.com/hilch1981-prog/MOP_V2_Repack/pull/1)**
-> - Source baseline: **[`docs/playerbots/SOURCE_BASELINE.md`](https://github.com/hilch1981-prog/MOP_V2_Repack/blob/playerbot-v2-poc/docs/playerbots/SOURCE_BASELINE.md)**
-> - Primary MoP implementation donor: **[DigiD702/mod-playerbots](https://github.com/DigiD702/mod-playerbots)**
-> - Generic AI / feature reference: **[mod-playerbots/mod-playerbots](https://github.com/mod-playerbots/mod-playerbots)**
-> - Historical MoP port reference: **[Legends of Azeroth PR #389](https://github.com/Legends-of-Azeroth/Legends-of-Azeroth-Pandaria-5.4.8/pull/389)**
+> - Main PlayerBot V2 development: **[`hilch1981-prog/mod-playerbots / mop-5.4.8-v2`](https://github.com/hilch1981-prog/mod-playerbots/tree/mop-5.4.8-v2)**
+> - Runtime / integration Core: **[`hilch1981-prog/MOP_V2_Repack`](https://github.com/hilch1981-prog/MOP_V2_Repack)**
+> - Core POC branch: **[`playerbot-v2-poc`](https://github.com/hilch1981-prog/MOP_V2_Repack/tree/playerbot-v2-poc)**
+> - Core bootstrap tracking: **[`MOP_V2_Repack PR #1`](https://github.com/hilch1981-prog/MOP_V2_Repack/pull/1)**
+> - MoP implementation donor: **[`DigiD702/mod-playerbots`](https://github.com/DigiD702/mod-playerbots)**
+> - Generic AI/features upstream: **[`mod-playerbots/mod-playerbots`](https://github.com/mod-playerbots/mod-playerbots)**
+> - Historical MoP port reference: **[`Legends of Azeroth PR #389`](https://github.com/Legends-of-Azeroth/Legends-of-Azeroth-Pandaria-5.4.8/pull/389)**
 >
-> **Important:** this repository is still a fork of the official AzerothCore `mod-playerbots` project and is kept as an upstream/reference fork. It is **not** the MoP 5.4.8 runtime module. The MoP V2 implementation and integration work lives in `MOP_V2_Repack`.
+> **Branch roles:** `master` preserves the official AzerothCore PlayerBots fork/reference line. `mop-5.4.8-v2` is the Chipa MoP PlayerBot V2 development line.
 
 ### 한국어 안내
 
-**판다리아의 안개 5.4.8 PlayerBot V2 개발을 찾으셨다면** 위의 `MOP_V2_Repack / playerbot-v2-poc` 브랜치로 이동해 주세요. 이 저장소는 공식 AzerothCore PlayerBots 참고용 포크로 유지하며, 실제 MoP 5.4.8 통합 개발은 `MOP_V2_Repack`에서 진행합니다.
+이 저장소를 **치파 PlayerBot V2의 메인 프로젝트入口**로 사용합니다.
+
+- PlayerBot 기능 개발·설계·포팅: **`mop-5.4.8-v2` 브랜치**
+- 실제 치파팩 Core 통합·컴파일·게임 검증: **`MOP_V2_Repack / playerbot-v2-poc`**
+- `master`는 공식 AzerothCore PlayerBots 원본 계열 비교용으로 보존합니다.
+
+➡️ **MoP 5.4.8 V2 개발자는 먼저 [`mop-5.4.8-v2`](https://github.com/hilch1981-prog/mod-playerbots/tree/mop-5.4.8-v2)로 이동해 주세요.**
 
 ---
 
