@@ -53,8 +53,11 @@ void PlayerbotAIBase::YieldThread(Player* bot, uint32 delay)
 {
     if (nextAICheckDelay < delay)
     {
-        // Adding a deterministic per-bot slight offset (0–200 ms) to stagger updates and prevent cpu spikes.
-        uint32 offset = bot ? (bot->GetGUID().GetCounter() % 201) : 0;
+        // Chipa/SkyFire 5.4.8 exposes Object::GetGUID() as uint64 and the
+        // stable low-part accessor as GetGUIDLow(). Preserve the donor's
+        // deterministic 0-200 ms per-bot staggering without depending on
+        // AzerothCore ObjectGuid::GetCounter().
+        uint32 offset = bot ? (bot->GetGUIDLow() % 201) : 0;
         nextAICheckDelay = delay + offset;
     }
 }
