@@ -48,6 +48,8 @@ def main() -> int:
     script = read("src/chipa/PlayerUpdateScript.cpp")
     bootstrap = read("src/chipa/ModuleBootstrap.cpp")
     donor_script = read("src/Script/Playerbots.cpp")
+    donor_mgr_h = read("src/Bot/PlayerbotMgr.h")
+    donor_mgr_cpp = read("src/Bot/PlayerbotMgr.cpp")
 
     for source in (
         "src/chipa/ModuleBootstrap.cpp",
@@ -185,6 +187,29 @@ def main() -> int:
     )
     forbid(donor_hook, "UpdateAIInternal(", "PlayerbotsPlayerScript::OnPlayerAfterUpdate")
 
+    # Chipa must not require the donor's WorldSession::GetPlayerbotMgr() core
+    # patch just to drive G2. PlayerbotsMgr already owns direct per-player maps
+    # and exposes null-safe accessors for both the AI and master manager. The
+    # future donor-specific TU should use these accessors instead of the legacy
+    # GET_PLAYERBOT_MGR(session) macro.
+    for token in (
+        "PlayerbotAI* GetPlayerbotAI(Player* player);",
+        "PlayerbotMgr* GetPlayerbotMgr(Player* player);",
+        "std::unordered_map<ObjectGuid, PlayerbotAIBase*> _playerbotsAIMap;",
+        "std::unordered_map<ObjectGuid, PlayerbotAIBase*> _playerbotsMgrMap;",
+    ):
+        require(donor_mgr_h, token, "PlayerbotMgr.h")
+
+    for marker, backing_map, expected_type in (
+        ("PlayerbotAI* PlayerbotsMgr::GetPlayerbotAI(Player* player)", "_playerbotsAIMap.find(player->GetGUID())", "dynamic_cast<PlayerbotAI*>(itr->second)"),
+        ("PlayerbotMgr* PlayerbotsMgr::GetPlayerbotMgr(Player* player)", "_playerbotsMgrMap.find(player->GetGUID())", "dynamic_cast<PlayerbotMgr*>(itr->second)"),
+    ):
+        require(donor_mgr_cpp, marker, "PlayerbotMgr.cpp")
+        getter_body = donor_mgr_cpp.split(marker, 1)[1].split("\n}\n", 1)[0]
+        require(getter_body, "!player", marker)
+        require(getter_body, backing_map, marker)
+        require(getter_body, expected_type, marker)
+
     # Core-facing bridges and generic module adapter must stay free of concrete
     # PlayerBot/session/database implementation dependencies. A later donor-
     # specific backend may include those headers in a separate adapted TU.
@@ -212,6 +237,7 @@ def main() -> int:
 
     print("PASS: Chipa G2 integration bridge static contract")
     print("PASS: donor public scheduling contract AI -> manager")
+    print("PASS: donor direct-map accessor contract for Chipa compatibility TU")
     print("NOTE: static contract only; no runtime gate is promoted")
     return 0
 
