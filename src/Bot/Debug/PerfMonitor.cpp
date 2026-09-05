@@ -5,10 +5,15 @@
 
 #include "PerfMonitor.h"
 
-#include "Playerbots.h"
+#include <algorithm>
+#include <iterator>
+#include <sstream>
+
+#include "Log.h"
+#include "PlayerbotAIConfig.h"
 
 PerfMonitorOperation* PerfMonitor::start(PerformanceMetric metric, std::string const name,
-                                                       PerformanceStack* stack)
+                                         PerformanceStack* stack)
 {
     if (!sPlayerbotAIConfig.perfMonEnabled)
         return nullptr;
@@ -60,12 +65,12 @@ void PerfMonitor::PrintStats(bool perTick, bool fullStack)
             if (map.first.find("PlayerbotAI::UpdateAIInternal") != std::string::npos)
                 updateAITotalTime += map.second->totalTime;
 
-        LOG_INFO(
+        TC_LOG_INFO(
             "playerbots",
             "--------------------------------------[TOTAL BOT]------------------------------------------------------");
-        LOG_INFO("playerbots",
-                 "percentage     time  |     min ..     max (      avg  of      count) - type      : name");
-        LOG_INFO(
+        TC_LOG_INFO("playerbots",
+                    "percentage     time  |     min ..     max (      avg  of      count) - type      : name");
+        TC_LOG_INFO(
             "playerbots",
             "-------------------------------------------------------------------------------------------------------");
 
@@ -111,10 +116,10 @@ void PerfMonitor::PrintStats(bool perTick, bool fullStack)
                       [pdMap](std::string const i, std::string const j)
                       { return pdMap.at(i)->totalTime < pdMap.at(j)->totalTime; });
 
-            uint64 typeTotalTime = 0;
-            uint64 typeMinTime = 0xffffffffu;
-            uint64 typeMaxTime = 0;
-            uint32 typeCount = 0;
+            uint64_t typeTotalTime = 0;
+            uint64_t typeMinTime = 0xffffffffu;
+            uint64_t typeMaxTime = 0;
+            uint32_t typeCount = 0;
             for (auto& name : names)
             {
                 PerformanceData* pd = pdMap[name];
@@ -135,9 +140,9 @@ void PerfMonitor::PrintStats(bool perTick, bool fullStack)
 
                 if (perc >= 0.1f || avg >= 0.25f || pd->maxTime > 1000)
                 {
-                    LOG_INFO("playerbots",
-                             "{:7.3f}% {:10.3f}s | {:7.1f} .. {:7.1f} ({:10.3f} of {:10d}) - {:6}    : {}", perc, time,
-                             minTime, maxTime, avg, pd->count, key.c_str(), disName.c_str());
+                    TC_LOG_INFO("playerbots",
+                                "%7.3f%% %10.3fs | %7.1f .. %7.1f (%10.3f of %10u) - %-6s    : %s", perc,
+                                time, minTime, maxTime, avg, pd->count, key.c_str(), disName.c_str());
                 }
             }
             float tPerc = (float)typeTotalTime / (float)updateAITotalTime * 100.0f;
@@ -145,9 +150,9 @@ void PerfMonitor::PrintStats(bool perTick, bool fullStack)
             float tMinTime = (float)typeMinTime / 1000.0f;
             float tMaxTime = (float)typeMaxTime / 1000.0f;
             float tAvg = (float)typeTotalTime / (float)typeCount / 1000.0f;
-            LOG_INFO("playerbots", "{:7.3f}% {:10.3f}s | {:7.1f} .. {:7.1f} ({:10.3f} of {:10d}) - {:6}    : {}", tPerc,
-                     tTime, tMinTime, tMaxTime, tAvg, typeCount, key.c_str(), "Total");
-            LOG_INFO("playerbots", " ");
+            TC_LOG_INFO("playerbots", "%7.3f%% %10.3fs | %7.1f .. %7.1f (%10.3f of %10u) - %-6s    : %s", tPerc,
+                        tTime, tMinTime, tMaxTime, tAvg, typeCount, key.c_str(), "Total");
+            TC_LOG_INFO("playerbots", " ");
         }
     }
     else
@@ -155,12 +160,12 @@ void PerfMonitor::PrintStats(bool perTick, bool fullStack)
         float fullTickCount = data[PERF_MON_TOTAL]["PlayerbotAIBase::FullTick"]->count;
         float fullTickTotalTime = data[PERF_MON_TOTAL]["PlayerbotAIBase::FullTick"]->totalTime;
 
-        LOG_INFO(
+        TC_LOG_INFO(
             "playerbots",
             "---------------------------------------[PER TICK]------------------------------------------------------");
-        LOG_INFO("playerbots",
-                 "percentage     time  |     min ..     max (      avg  of      count) - type      : name");
-        LOG_INFO(
+        TC_LOG_INFO("playerbots",
+                    "percentage     time  |     min ..     max (      avg  of      count) - type      : name");
+        TC_LOG_INFO(
             "playerbots",
             "-------------------------------------------------------------------------------------------------------");
 
@@ -202,10 +207,10 @@ void PerfMonitor::PrintStats(bool perTick, bool fullStack)
                       [pdMap](std::string const i, std::string const j)
                       { return pdMap.at(i)->totalTime < pdMap.at(j)->totalTime; });
 
-            uint64 typeTotalTime = 0;
-            uint64 typeMinTime = 0xffffffffu;
-            uint64 typeMaxTime = 0;
-            uint32 typeCount = 0;
+            uint64_t typeTotalTime = 0;
+            uint64_t typeMinTime = 0xffffffffu;
+            uint64_t typeMaxTime = 0;
+            uint32_t typeCount = 0;
             for (auto& name : names)
             {
                 PerformanceData* pd = pdMap[name];
@@ -226,9 +231,9 @@ void PerfMonitor::PrintStats(bool perTick, bool fullStack)
                     disName = disName.substr(0, disName.find("|")) + "]";
                 if (perc >= 0.1f || avg >= 0.25f || pd->maxTime > 1000)
                 {
-                    LOG_INFO("playerbots",
-                             "{:7.3f}% {:9.3f}ms | {:7.1f} .. {:7.1f} ({:10.3f} of {:10.2f}) - {:6}    : {}", perc,
-                             time, minTime, maxTime, avg, amount, key.c_str(), disName.c_str());
+                    TC_LOG_INFO("playerbots",
+                                "%7.3f%% %9.3fms | %7.1f .. %7.1f (%10.3f of %10.2f) - %-6s    : %s", perc,
+                                time, minTime, maxTime, avg, amount, key.c_str(), disName.c_str());
                 }
             }
             if (i->first != PERF_MON_TOTAL)
@@ -239,10 +244,11 @@ void PerfMonitor::PrintStats(bool perTick, bool fullStack)
                 float tMaxTime = (float)typeMaxTime / 1000.0f;
                 float tAvg = (float)typeTotalTime / (float)typeCount / 1000.0f;
                 float tAmount = (float)typeCount / fullTickCount;
-                LOG_INFO("playerbots", "{:7.3f}% {:9.3f}ms | {:7.1f} .. {:7.1f} ({:10.3f} of {:10.2f}) - {:6}    : {}",
-                         tPerc, tTime, tMinTime, tMaxTime, tAvg, tAmount, key.c_str(), "Total");
+                TC_LOG_INFO("playerbots",
+                            "%7.3f%% %9.3fms | %7.1f .. %7.1f (%10.3f of %10.2f) - %-6s    : %s", tPerc,
+                            tTime, tMinTime, tMaxTime, tAvg, tAmount, key.c_str(), "Total");
             }
-            LOG_INFO("playerbots", " ");
+            TC_LOG_INFO("playerbots", " ");
         }
     }
 }
@@ -266,7 +272,7 @@ void PerfMonitor::Reset()
 }
 
 PerfMonitorOperation::PerfMonitorOperation(PerformanceData* data, std::string const name,
-                                                         PerformanceStack* stack)
+                                           PerformanceStack* stack)
     : data(data), name(name), stack(stack)
 {
     started = (std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()))
@@ -278,7 +284,7 @@ void PerfMonitorOperation::finish()
     std::chrono::microseconds finished =
         (std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()))
             .time_since_epoch();
-    uint64 elapsed = (finished - started).count();
+    uint64_t elapsed = (finished - started).count();
 
     std::lock_guard<std::mutex> guard(data->lock);
     if (elapsed > 0)
