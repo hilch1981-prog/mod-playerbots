@@ -2,8 +2,10 @@
 #include "PlayerUpdateAdapter.h"
 #include "PlayerUpdateBridge.h"
 
+#include <atomic>
 #include <cassert>
 #include <cstdint>
+#include <thread>
 #include <vector>
 
 class Player
@@ -20,6 +22,7 @@ namespace
     std::uint32_t g_lastDiff = 0;
     int g_loginCount = 0;
     int g_logoutCount = 0;
+    thread_local int g_stressPair = 0;
 
     bool IsManaged(Player* player)
     {
@@ -52,6 +55,30 @@ namespace
         assert(player == g_managed);
         assert(diff == g_lastDiff);
         g_events.push_back(4);
+    }
+
+    void StressAUpdateAI(Player* player, std::uint32_t)
+    {
+        assert(player == g_managed);
+        g_stressPair = 1;
+    }
+
+    void StressAUpdateManager(Player* player, std::uint32_t)
+    {
+        assert(player == g_managed);
+        assert(g_stressPair == 1);
+    }
+
+    void StressBUpdateAI(Player* player, std::uint32_t)
+    {
+        assert(player == g_managed);
+        g_stressPair = 2;
+    }
+
+    void StressBUpdateManager(Player* player, std::uint32_t)
+    {
+        assert(player == g_managed);
+        assert(g_stressPair == 2);
     }
 
     void OnLogin(Player* player)
@@ -121,6 +148,47 @@ int main()
     assert(g_events.size() == 1);
     assert(g_events[0] == 1);
     assert(g_lastDiff == 35);
+
+    // Exercise the writer-serialization contract under concurrent backend
+    // replacement. The dispatcher must never observe AI from one generation
+    // paired with the manager callback from the other generation.
+    chipa::playerbots::PlayerUpdateBackend stressA;
+    stressA.isManagedPlayer = &IsManaged;
+    stressA.updateAI = &StressAUpdateAI;
+    stressA.updateManager = &StressAUpdateManager;
+
+    chipa::playerbots::PlayerUpdateBackend stressB;
+    stressB.isManagedPlayer = &IsManaged;
+    stressB.updateAI = &StressBUpdateAI;
+    stressB.updateManager = &StressBUpdateManager;
+
+    std::atomic<bool> startStress(false);
+    std::thread writerA([&]() {
+        while (!startStress.load(std::memory_order_acquire))
+        {
+        }
+        for (int i = 0; i < 20000; ++i)
+            chipa::playerbots::ConfigurePlayerUpdateBackend(stressA);
+    });
+    std::thread writerB([&]() {
+        while (!startStress.load(std::memory_order_acquire))
+        {
+        }
+        for (int i = 0; i < 20000; ++i)
+            chipa::playerbots::ConfigurePlayerUpdateBackend(stressB);
+    });
+    std::thread dispatcher([&]() {
+        while (!startStress.load(std::memory_order_acquire))
+        {
+        }
+        for (std::uint32_t i = 0; i < 50000; ++i)
+            chipa::playerbots::DispatchPlayerUpdate(&bot, i);
+    });
+
+    startStress.store(true, std::memory_order_release);
+    writerA.join();
+    writerB.join();
+    dispatcher.join();
 
     g_events.clear();
     chipa::playerbots::ResetPlayerUpdateBackend();
