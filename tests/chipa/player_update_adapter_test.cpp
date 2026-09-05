@@ -1,3 +1,4 @@
+#include "FreshResolvedBackend.h"
 #include "FreshResolvedUpdate.h"
 #include "PlayerLifecycleBridge.h"
 #include "PlayerUpdateAdapter.h"
@@ -105,16 +106,14 @@ namespace
 
     FakeAI* ResolveAI(Player* player)
     {
-        assert(player == g_managed);
         ++g_aiResolveCount;
-        return g_resolvedAI;
+        return player == g_managed ? g_resolvedAI : nullptr;
     }
 
     FakeManager* ResolveManager(Player* player)
     {
-        assert(player == g_managed);
         ++g_managerResolveCount;
-        return g_resolvedManager;
+        return player == g_managed ? g_resolvedManager : nullptr;
     }
 
     void UpdateResolvedAI(FakeAI* ai, std::uint32_t diff)
@@ -321,6 +320,75 @@ int main()
     assert(g_events.empty());
     assert(g_aiResolveCount == aiResolveBeforeNull);
     assert(g_managerResolveCount == managerResolveBeforeNull);
+
+    // Exercise the typed production binding that a donor-specific TU will
+    // instantiate with PlayerbotsMgr accessors and public UpdateAI wrappers.
+    typedef chipa::playerbots::FreshResolvedBackend<
+        FakeAI,
+        FakeManager,
+        &ResolveAI,
+        &UpdateResolvedAI,
+        &ResolveManager,
+        &UpdateResolvedManager> BoundBackend;
+
+    chipa::playerbots::RegisterPlayerUpdateAdapter();
+    chipa::playerbots::ConfigurePlayerUpdateBackend(BoundBackend::MakeBackend());
+
+    g_resolvedAI = &aiA;
+    g_resolvedManager = &managerA;
+    g_events.clear();
+    chipa::playerbots::DispatchPlayerUpdate(&human, 80);
+    assert(g_events.empty());
+
+    g_events.clear();
+    chipa::playerbots::DispatchPlayerUpdate(&bot, 81);
+    assert(g_events.size() == 2);
+    assert(g_events[0] == 5);
+    assert(g_events[1] == 6);
+    assert(g_lastResolvedAI == 101);
+    assert(g_lastResolvedManager == 201);
+    assert(g_lastResolvedAIDiff == 81);
+    assert(g_lastResolvedManagerDiff == 81);
+
+    // Change ownership targets between dispatches. The bound backend must use
+    // the replacement objects immediately rather than any prior raw pointer.
+    g_resolvedAI = &aiB;
+    g_resolvedManager = &managerB;
+    g_events.clear();
+    chipa::playerbots::DispatchPlayerUpdate(&bot, 82);
+    assert(g_events.size() == 2);
+    assert(g_events[0] == 5);
+    assert(g_events[1] == 6);
+    assert(g_lastResolvedAI == 102);
+    assert(g_lastResolvedManager == 202);
+    assert(g_lastResolvedAIDiff == 82);
+    assert(g_lastResolvedManagerDiff == 82);
+
+    // Classification and work remain null-safe if only one donor-owned object
+    // exists, matching the donor hook's independent AI/manager branches.
+    g_resolvedAI = nullptr;
+    g_resolvedManager = &managerA;
+    g_events.clear();
+    chipa::playerbots::DispatchPlayerUpdate(&bot, 83);
+    assert(g_events.size() == 1);
+    assert(g_events[0] == 6);
+    assert(g_lastResolvedManagerDiff == 83);
+
+    g_resolvedAI = &aiA;
+    g_resolvedManager = nullptr;
+    g_events.clear();
+    chipa::playerbots::DispatchPlayerUpdate(&bot, 84);
+    assert(g_events.size() == 1);
+    assert(g_events[0] == 5);
+    assert(g_lastResolvedAIDiff == 84);
+
+    g_resolvedAI = nullptr;
+    g_resolvedManager = nullptr;
+    g_events.clear();
+    chipa::playerbots::DispatchPlayerUpdate(&bot, 85);
+    assert(g_events.empty());
+
+    chipa::playerbots::UnregisterPlayerUpdateAdapter();
 
     // The generic bridges reject null Player pointers and are no-ops until a
     // concrete lifecycle backend is installed.
