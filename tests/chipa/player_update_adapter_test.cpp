@@ -43,6 +43,8 @@ namespace
     int g_managerResolveCount = 0;
     int g_lastResolvedAI = 0;
     int g_lastResolvedManager = 0;
+    std::uint32_t g_lastResolvedAIDiff = 0;
+    std::uint32_t g_lastResolvedManagerDiff = 0;
 
     bool IsManaged(Player* player)
     {
@@ -118,16 +120,16 @@ namespace
     void UpdateResolvedAI(FakeAI* ai, std::uint32_t diff)
     {
         assert(ai != nullptr);
-        g_lastDiff = diff;
         g_lastResolvedAI = ai->id;
+        g_lastResolvedAIDiff = diff;
         g_events.push_back(5);
     }
 
     void UpdateResolvedManager(FakeManager* manager, std::uint32_t diff)
     {
         assert(manager != nullptr);
-        assert(diff == g_lastDiff);
         g_lastResolvedManager = manager->id;
+        g_lastResolvedManagerDiff = diff;
         g_events.push_back(6);
     }
 
@@ -271,6 +273,8 @@ int main()
     assert(g_managerResolveCount == 1);
     assert(g_lastResolvedAI == 101);
     assert(g_lastResolvedManager == 201);
+    assert(g_lastResolvedAIDiff == 70);
+    assert(g_lastResolvedManagerDiff == 70);
 
     // Replace both resolved objects without changing the helper. The next tick
     // must observe the new objects, proving there is no cross-tick pointer cache.
@@ -286,6 +290,8 @@ int main()
     assert(g_managerResolveCount == 2);
     assert(g_lastResolvedAI == 102);
     assert(g_lastResolvedManager == 202);
+    assert(g_lastResolvedAIDiff == 71);
+    assert(g_lastResolvedManagerDiff == 71);
 
     // Match the donor hook's independent null handling: a missing AI does not
     // suppress manager work, and a missing manager does not suppress AI work.
@@ -296,6 +302,7 @@ int main()
         &bot, 72, &ResolveAI, &UpdateResolvedAI, &ResolveManager, &UpdateResolvedManager);
     assert(g_events.size() == 1);
     assert(g_events[0] == 6);
+    assert(g_lastResolvedManagerDiff == 72);
 
     g_resolvedAI = &aiA;
     g_resolvedManager = nullptr;
@@ -304,6 +311,7 @@ int main()
         &bot, 73, &ResolveAI, &UpdateResolvedAI, &ResolveManager, &UpdateResolvedManager);
     assert(g_events.size() == 1);
     assert(g_events[0] == 5);
+    assert(g_lastResolvedAIDiff == 73);
 
     int const aiResolveBeforeNull = g_aiResolveCount;
     int const managerResolveBeforeNull = g_managerResolveCount;
