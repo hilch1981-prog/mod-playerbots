@@ -117,14 +117,20 @@ def main() -> int:
         require(adapter_h, token, "PlayerUpdateAdapter.h")
 
     require(adapter_cpp, "SetPlayerUpdateCallback(&HandlePlayerUpdate);", "PlayerUpdateAdapter.cpp")
+    require(adapter_cpp, "g_backendGeneration", "PlayerUpdateAdapter.cpp")
+    require(adapter_cpp, "BackendSnapshot LoadBackendSnapshot()", "PlayerUpdateAdapter.cpp")
+    require(adapter_cpp, "BeginBackendWrite();", "PlayerUpdateAdapter.cpp")
+    require(adapter_cpp, "EndBackendWrite();", "PlayerUpdateAdapter.cpp")
     require_order(
-        adapter_cpp,
+        adapter_cpp.split("void HandlePlayerUpdate", 1)[1].split("}\n}", 1)[0],
         (
-            "if (!isManagedPlayer || !isManagedPlayer(player))",
-            "updateAI(player, diff);",
-            "updateManager(player, diff);",
+            "if (!player)",
+            "BackendSnapshot const backend = LoadBackendSnapshot();",
+            "if (!backend.isManagedPlayer || !backend.isManagedPlayer(player))",
+            "backend.updateAI(player, diff);",
+            "backend.updateManager(player, diff);",
         ),
-        "PlayerUpdateAdapter.cpp",
+        "HandlePlayerUpdate",
     )
     forbid(adapter_cpp, "UpdateAIInternal", "PlayerUpdateAdapter.cpp")
 
