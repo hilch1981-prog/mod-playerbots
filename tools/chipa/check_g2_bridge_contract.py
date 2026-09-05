@@ -46,6 +46,7 @@ def main() -> int:
     adapter_h = read("src/chipa/PlayerUpdateAdapter.h")
     adapter_cpp = read("src/chipa/PlayerUpdateAdapter.cpp")
     fresh_h = read("src/chipa/FreshResolvedUpdate.h")
+    fresh_backend_h = read("src/chipa/FreshResolvedBackend.h")
     script = read("src/chipa/PlayerUpdateScript.cpp")
     bootstrap = read("src/chipa/ModuleBootstrap.cpp")
     donor_script = read("src/Script/Playerbots.cpp")
@@ -187,6 +188,40 @@ def main() -> int:
     )
     forbid(fresh_h, "UpdateAIInternal", "FreshResolvedUpdate.h")
 
+    # The typed binding is the production-facing seam for the future donor TU.
+    # It must classify without retaining ownership pointers, re-resolve before
+    # each work callback, and produce exactly the generic backend callbacks.
+    for token in (
+        "struct FreshResolvedBackend",
+        "static bool IsManagedPlayer(Player* player)",
+        "static void UpdateAI(Player* player, std::uint32_t diff)",
+        "static void UpdateManager(Player* player, std::uint32_t diff)",
+        "static PlayerUpdateBackend MakeBackend()",
+        "backend.isManagedPlayer = &IsManagedPlayer;",
+        "backend.updateAI = &UpdateAI;",
+        "backend.updateManager = &UpdateManager;",
+    ):
+        require(fresh_backend_h, token, "FreshResolvedBackend.h")
+    update_ai_body = fresh_backend_h.split("static void UpdateAI", 1)[1].split("static void UpdateManager", 1)[0]
+    require_order(
+        update_ai_body,
+        (
+            "AiType* const ai = ResolveAI(player);",
+            "ApplyAIUpdate(ai, diff);",
+        ),
+        "FreshResolvedBackend::UpdateAI",
+    )
+    update_manager_body = fresh_backend_h.split("static void UpdateManager", 1)[1].split("static PlayerUpdateBackend MakeBackend", 1)[0]
+    require_order(
+        update_manager_body,
+        (
+            "ManagerType* const manager = ResolveManager(player);",
+            "ApplyManagerUpdate(manager, diff);",
+        ),
+        "FreshResolvedBackend::UpdateManager",
+    )
+    forbid(fresh_backend_h, "UpdateAIInternal", "FreshResolvedBackend.h")
+
     # Lock the donor public scheduling contract independently of the generic
     # bridge. The future MoP compatibility TU may adapt ownership/lookups, but
     # it must preserve the donor's public AI -> manager update order and must
@@ -246,6 +281,8 @@ def main() -> int:
         + adapter_cpp
         + "\n"
         + fresh_h
+        + "\n"
+        + fresh_backend_h
     )
     for forbidden in (
         "PlayerbotAI.h",
@@ -260,6 +297,7 @@ def main() -> int:
     print("PASS: donor public scheduling contract AI -> manager")
     print("PASS: donor direct-map accessor contract for Chipa compatibility TU")
     print("PASS: donor objects are resolved fresh per dispatch without raw-pointer caching")
+    print("PASS: typed fresh-resolved backend composes with generic adapter")
     print("NOTE: static contract only; no runtime gate is promoted")
     return 0
 
