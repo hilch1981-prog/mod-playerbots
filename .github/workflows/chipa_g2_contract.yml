@@ -7,12 +7,16 @@ on:
     paths:
       - chipa_module.cmake
       - src/chipa/**
+      - src/Script/Playerbots.cpp
+      - src/Bot/PlayerbotAI.cpp
+      - src/Bot/PlayerbotMgr.cpp
       - src/Bot/Engine/PlayerbotAIBase.cpp
       - src/Bot/Debug/PerfMonitor.cpp
       - tests/chipa/**
       - tools/chipa/check_g2_bridge_contract.py
       - tools/chipa/check_g2_donor_backend_contract.py
       - tools/chipa/check_skyfire_runtime_contract.py
+      - tools/chipa/audit_objectguid_compat.py
       - .github/workflows/chipa_g2_contract.yml
   workflow_dispatch:
 
@@ -37,6 +41,9 @@ jobs:
 
       - name: Verify live SkyFire runtime API contract
         run: python3 tools/chipa/check_skyfire_runtime_contract.py .chipa-runtime
+
+      - name: Inventory ObjectGuid compatibility blockers
+        run: python3 tools/chipa/audit_objectguid_compat.py .chipa-runtime
 
       - name: Verify G2 bridge architecture contract
         run: python3 tools/chipa/check_g2_bridge_contract.py
