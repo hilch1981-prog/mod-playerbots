@@ -27,6 +27,7 @@ MODERN_GUID_METHODS = (
     "ReadAsPacked",
     "IsPlayer",
     "GetCounter",
+    "GetHigh",
 )
 
 
@@ -59,6 +60,15 @@ def modern_guid_findings(relative: str, text: str) -> list[tuple[str, str, int]]
             count = len(re.findall(pattern, text))
             if count:
                 findings.append((relative, f"{name}.{method}()", count))
+
+    # Chipa/SkyFire Object::GetGUID() returns uint64 directly. Modern donor
+    # chains such as obj->GetGUID().GetCounter()/GetHigh() therefore cannot
+    # compile even when no local ObjectGuid variable is involved.
+    for method in ("GetCounter", "GetHigh"):
+        pattern = rf"GetGUID\s*\(\s*\)\s*\.\s*{method}\s*\("
+        count = len(re.findall(pattern, text))
+        if count:
+            findings.append((relative, f"GetGUID().{method}()", count))
 
     return findings
 
