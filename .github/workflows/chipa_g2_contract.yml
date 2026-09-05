@@ -12,6 +12,7 @@ on:
       - tests/chipa/**
       - tools/chipa/check_g2_bridge_contract.py
       - tools/chipa/check_g2_donor_backend_contract.py
+      - tools/chipa/check_skyfire_runtime_contract.py
       - .github/workflows/chipa_g2_contract.yml
   workflow_dispatch:
 
@@ -22,8 +23,20 @@ jobs:
   static-contract:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout module
         uses: actions/checkout@v4
+
+      - name: Checkout Chipa SkyFire runtime baseline
+        uses: actions/checkout@v4
+        with:
+          repository: hilch1981-prog/MOP_V2_Repack
+          ref: repack-main
+          path: .chipa-runtime
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify live SkyFire runtime API contract
+        run: python3 tools/chipa/check_skyfire_runtime_contract.py .chipa-runtime
 
       - name: Verify G2 bridge architecture contract
         run: python3 tools/chipa/check_g2_bridge_contract.py
