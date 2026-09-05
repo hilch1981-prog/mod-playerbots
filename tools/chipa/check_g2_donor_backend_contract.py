@@ -46,6 +46,7 @@ def main() -> int:
     donor_ai_h = read("src/Bot/PlayerbotAI.h")
     donor_mgr_h = read("src/Bot/PlayerbotMgr.h")
     donor_base_h = read("src/Bot/Engine/PlayerbotAIBase.h")
+    donor_base_cpp = read("src/Bot/Engine/PlayerbotAIBase.cpp")
 
     for token in (
         '#include "FreshResolvedBackend.h"',
@@ -87,6 +88,14 @@ def main() -> int:
     require(donor_mgr_h, "PlayerbotAI* GetPlayerbotAI(Player* player);", "PlayerbotMgr.h")
     require(donor_mgr_h, "PlayerbotMgr* GetPlayerbotMgr(Player* player);", "PlayerbotMgr.h")
 
+    # First concrete source-closure adaptation: the donor's modern AzerothCore
+    # ObjectGuid::GetCounter() API does not exist in the Chipa/SkyFire 5.4.8
+    # runtime, where Object::GetGUID() is uint64 and GetGUIDLow() is the stable
+    # low-part accessor. Keep the deterministic scheduler staggering while
+    # preventing this known Core-API mismatch from regressing.
+    require(donor_base_cpp, "bot->GetGUIDLow() % 201", "PlayerbotAIBase.cpp SkyFire GUID adaptation")
+    forbid(donor_base_cpp, "GetGUID().GetCounter()", "PlayerbotAIBase.cpp SkyFire GUID adaptation")
+
     # Activation is a separate gate. Until the donor source closure is adapted,
     # compiling this TU would introduce unresolved/incompatible donor symbols.
     # Keep both the manifest and bootstrap inactive so current G1 evidence is
@@ -97,6 +106,7 @@ def main() -> int:
     print("PASS: staged donor backend uses fresh PlayerbotsMgr accessors")
     print("PASS: staged donor backend preserves public AI -> manager update contract")
     print("PASS: no UpdateAIInternal/session dependency/raw-pointer cache introduced")
+    print("PASS: PlayerbotAIBase scheduler uses SkyFire-compatible GetGUIDLow() staggering")
     print("PASS: donor backend remains inactive pending source-closure build evidence")
     print("NOTE: static staging evidence only; no runtime gate is promoted")
     return 0
