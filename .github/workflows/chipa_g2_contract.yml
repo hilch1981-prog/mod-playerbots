@@ -16,6 +16,7 @@ on:
       - tools/chipa/check_g2_bridge_contract.py
       - tools/chipa/check_g2_donor_backend_contract.py
       - tools/chipa/check_skyfire_runtime_contract.py
+      - tools/chipa/check_mop548_spell_packet_contract.py
       - tools/chipa/audit_objectguid_compat.py
       - .github/workflows/chipa_g2_contract.yml
   workflow_dispatch:
@@ -42,6 +43,9 @@ jobs:
       - name: Verify live SkyFire runtime API contract
         run: python3 tools/chipa/check_skyfire_runtime_contract.py .chipa-runtime
 
+      - name: Verify live MoP spell packet layouts
+        run: python3 tools/chipa/check_mop548_spell_packet_contract.py .chipa-runtime
+
       - name: Inventory ObjectGuid compatibility blockers
         run: python3 tools/chipa/audit_objectguid_compat.py .chipa-runtime
 
@@ -63,3 +67,13 @@ jobs:
 
       - name: Run adapter contract harness
         run: /tmp/chipa-player-update-adapter-test
+
+      - name: Compile MoP spell packet compatibility harness
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror \
+            -Isrc/chipa \
+            tests/chipa/mop548_spell_packet_compat_test.cpp \
+            -o /tmp/chipa-mop548-spell-packet-test
+
+      - name: Run MoP spell packet compatibility harness
+        run: /tmp/chipa-mop548-spell-packet-test
