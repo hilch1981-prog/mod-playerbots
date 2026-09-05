@@ -62,13 +62,15 @@ def main() -> int:
     )
     require(bootstrap, "void AddChipaPlayerbotUpdateScript();", "ModuleBootstrap.cpp")
     require(bootstrap, "void RegisterPlayerUpdateAdapter();", "ModuleBootstrap.cpp")
+    require(bootstrap, "void Addmod_playerbotsScripts()", "ModuleBootstrap.cpp")
+    bootstrap_body = bootstrap.split("void Addmod_playerbotsScripts()", 1)[1]
     require_order(
-        bootstrap,
+        bootstrap_body,
         (
             "chipa::playerbots::RegisterPlayerUpdateAdapter();",
             "AddChipaPlayerbotUpdateScript();",
         ),
-        "ModuleBootstrap.cpp",
+        "Addmod_playerbotsScripts body",
     )
 
     if not (
