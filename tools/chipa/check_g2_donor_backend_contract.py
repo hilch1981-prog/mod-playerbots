@@ -96,6 +96,13 @@ def main() -> int:
     require(donor_base_cpp, "bot->GetGUIDLow() % 201", "PlayerbotAIBase.cpp SkyFire GUID adaptation")
     forbid(donor_base_cpp, "GetGUID().GetCounter()", "PlayerbotAIBase.cpp SkyFire GUID adaptation")
 
+    # Keep the scheduler closure narrow. It needs only the performance monitor
+    # API in addition to PlayerbotAIBase.h; pulling Script/Playerbots.h here
+    # drags AI, manager, random-bot, spell and travel headers into this unit and
+    # makes the MoP compatibility closure much harder to reason about.
+    require(donor_base_cpp, '#include "PerfMonitor.h"', "PlayerbotAIBase.cpp narrow perf dependency")
+    forbid(donor_base_cpp, '#include "Playerbots.h"', "PlayerbotAIBase.cpp narrow perf dependency")
+
     # Activation is a separate gate. Until the donor source closure is adapted,
     # compiling this TU would introduce unresolved/incompatible donor symbols.
     # Keep both the manifest and bootstrap inactive so current G1 evidence is
@@ -107,6 +114,7 @@ def main() -> int:
     print("PASS: staged donor backend preserves public AI -> manager update contract")
     print("PASS: no UpdateAIInternal/session dependency/raw-pointer cache introduced")
     print("PASS: PlayerbotAIBase scheduler uses SkyFire-compatible GetGUIDLow() staggering")
+    print("PASS: PlayerbotAIBase scheduler keeps a narrow PerfMonitor-only dependency")
     print("PASS: donor backend remains inactive pending source-closure build evidence")
     print("NOTE: static staging evidence only; no runtime gate is promoted")
     return 0
