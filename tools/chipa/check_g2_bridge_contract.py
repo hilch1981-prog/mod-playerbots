@@ -51,7 +51,11 @@ def main() -> int:
     require(bootstrap, "void AddChipaPlayerbotUpdateScript();", "ModuleBootstrap.cpp")
     require(bootstrap, "AddChipaPlayerbotUpdateScript();", "ModuleBootstrap.cpp")
 
-    require(bridge_h, "using PlayerUpdateCallback", "PlayerUpdateBridge.h")
+    if not (
+        "typedef void (*PlayerUpdateCallback)" in bridge_h
+        or "using PlayerUpdateCallback" in bridge_h
+    ):
+        raise AssertionError("PlayerUpdateBridge.h: PlayerUpdateCallback declaration missing")
     require(bridge_h, "SetPlayerUpdateCallback", "PlayerUpdateBridge.h")
     require(bridge_h, "DispatchPlayerUpdate", "PlayerUpdateBridge.h")
     require(bridge_cpp, "if (!player)", "PlayerUpdateBridge.cpp")
