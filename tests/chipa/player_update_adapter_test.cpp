@@ -1,3 +1,4 @@
+#include "FreshResolvedUpdate.h"
 #include "PlayerLifecycleBridge.h"
 #include "PlayerUpdateAdapter.h"
 #include "PlayerUpdateBridge.h"
@@ -17,12 +18,31 @@ public:
 
 namespace
 {
+    struct FakeAI
+    {
+        explicit FakeAI(int value) : id(value) { }
+        int id;
+    };
+
+    struct FakeManager
+    {
+        explicit FakeManager(int value) : id(value) { }
+        int id;
+    };
+
     Player* g_managed = nullptr;
     std::vector<int> g_events;
     std::uint32_t g_lastDiff = 0;
     int g_loginCount = 0;
     int g_logoutCount = 0;
     thread_local int g_stressPair = 0;
+
+    FakeAI* g_resolvedAI = nullptr;
+    FakeManager* g_resolvedManager = nullptr;
+    int g_aiResolveCount = 0;
+    int g_managerResolveCount = 0;
+    int g_lastResolvedAI = 0;
+    int g_lastResolvedManager = 0;
 
     bool IsManaged(Player* player)
     {
@@ -79,6 +99,36 @@ namespace
     {
         assert(player == g_managed);
         assert(g_stressPair == 2);
+    }
+
+    FakeAI* ResolveAI(Player* player)
+    {
+        assert(player == g_managed);
+        ++g_aiResolveCount;
+        return g_resolvedAI;
+    }
+
+    FakeManager* ResolveManager(Player* player)
+    {
+        assert(player == g_managed);
+        ++g_managerResolveCount;
+        return g_resolvedManager;
+    }
+
+    void UpdateResolvedAI(FakeAI* ai, std::uint32_t diff)
+    {
+        assert(ai != nullptr);
+        g_lastDiff = diff;
+        g_lastResolvedAI = ai->id;
+        g_events.push_back(5);
+    }
+
+    void UpdateResolvedManager(FakeManager* manager, std::uint32_t diff)
+    {
+        assert(manager != nullptr);
+        assert(diff == g_lastDiff);
+        g_lastResolvedManager = manager->id;
+        g_events.push_back(6);
     }
 
     void OnLogin(Player* player)
@@ -198,6 +248,71 @@ int main()
     chipa::playerbots::UnregisterPlayerUpdateAdapter();
     chipa::playerbots::DispatchPlayerUpdate(&bot, 55);
     assert(g_events.empty());
+
+    // The donor compatibility helper must resolve AI and manager fresh on
+    // every dispatch, in AI -> manager order, and must not retain stale raw
+    // pointers across lifecycle/SelfBot ownership changes.
+    FakeAI aiA(101);
+    FakeAI aiB(102);
+    FakeManager managerA(201);
+    FakeManager managerB(202);
+    g_resolvedAI = &aiA;
+    g_resolvedManager = &managerA;
+    g_events.clear();
+    g_aiResolveCount = 0;
+    g_managerResolveCount = 0;
+
+    chipa::playerbots::DispatchFreshResolvedUpdates(
+        &bot, 70, &ResolveAI, &UpdateResolvedAI, &ResolveManager, &UpdateResolvedManager);
+    assert(g_events.size() == 2);
+    assert(g_events[0] == 5);
+    assert(g_events[1] == 6);
+    assert(g_aiResolveCount == 1);
+    assert(g_managerResolveCount == 1);
+    assert(g_lastResolvedAI == 101);
+    assert(g_lastResolvedManager == 201);
+
+    // Replace both resolved objects without changing the helper. The next tick
+    // must observe the new objects, proving there is no cross-tick pointer cache.
+    g_resolvedAI = &aiB;
+    g_resolvedManager = &managerB;
+    g_events.clear();
+    chipa::playerbots::DispatchFreshResolvedUpdates(
+        &bot, 71, &ResolveAI, &UpdateResolvedAI, &ResolveManager, &UpdateResolvedManager);
+    assert(g_events.size() == 2);
+    assert(g_events[0] == 5);
+    assert(g_events[1] == 6);
+    assert(g_aiResolveCount == 2);
+    assert(g_managerResolveCount == 2);
+    assert(g_lastResolvedAI == 102);
+    assert(g_lastResolvedManager == 202);
+
+    // Match the donor hook's independent null handling: a missing AI does not
+    // suppress manager work, and a missing manager does not suppress AI work.
+    g_resolvedAI = nullptr;
+    g_resolvedManager = &managerA;
+    g_events.clear();
+    chipa::playerbots::DispatchFreshResolvedUpdates(
+        &bot, 72, &ResolveAI, &UpdateResolvedAI, &ResolveManager, &UpdateResolvedManager);
+    assert(g_events.size() == 1);
+    assert(g_events[0] == 6);
+
+    g_resolvedAI = &aiA;
+    g_resolvedManager = nullptr;
+    g_events.clear();
+    chipa::playerbots::DispatchFreshResolvedUpdates(
+        &bot, 73, &ResolveAI, &UpdateResolvedAI, &ResolveManager, &UpdateResolvedManager);
+    assert(g_events.size() == 1);
+    assert(g_events[0] == 5);
+
+    int const aiResolveBeforeNull = g_aiResolveCount;
+    int const managerResolveBeforeNull = g_managerResolveCount;
+    g_events.clear();
+    chipa::playerbots::DispatchFreshResolvedUpdates<Player, FakeAI, FakeManager>(
+        nullptr, 74, &ResolveAI, &UpdateResolvedAI, &ResolveManager, &UpdateResolvedManager);
+    assert(g_events.empty());
+    assert(g_aiResolveCount == aiResolveBeforeNull);
+    assert(g_managerResolveCount == managerResolveBeforeNull);
 
     // The generic bridges reject null Player pointers and are no-ops until a
     // concrete lifecycle backend is installed.
