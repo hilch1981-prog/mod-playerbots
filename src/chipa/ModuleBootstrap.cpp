@@ -8,7 +8,16 @@
 
 void AddChipaPlayerbotUpdateScript();
 
+namespace chipa
+{
+namespace playerbots
+{
+    void RegisterPlayerUpdateAdapter();
+}
+}
+
 void Addmod_playerbotsScripts()
 {
+    chipa::playerbots::RegisterPlayerUpdateAdapter();
     AddChipaPlayerbotUpdateScript();
 }

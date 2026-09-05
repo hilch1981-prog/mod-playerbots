@@ -28,16 +28,28 @@ def forbid(text: str, token: str, where: str) -> None:
         raise AssertionError(f"{where}: forbidden PlayerBot/runtime dependency leaked in: {token}")
 
 
+def require_order(text: str, tokens: tuple[str, ...], where: str) -> None:
+    positions = []
+    for token in tokens:
+        require(text, token, where)
+        positions.append(text.index(token))
+    if positions != sorted(positions):
+        raise AssertionError(f"{where}: required ordering violated: {' -> '.join(tokens)}")
+
+
 def main() -> int:
     manifest = read("chipa_module.cmake")
     bridge_h = read("src/chipa/PlayerUpdateBridge.h")
     bridge_cpp = read("src/chipa/PlayerUpdateBridge.cpp")
+    adapter_h = read("src/chipa/PlayerUpdateAdapter.h")
+    adapter_cpp = read("src/chipa/PlayerUpdateAdapter.cpp")
     script = read("src/chipa/PlayerUpdateScript.cpp")
     bootstrap = read("src/chipa/ModuleBootstrap.cpp")
 
     for source in (
         "src/chipa/ModuleBootstrap.cpp",
         "src/chipa/PlayerUpdateBridge.cpp",
+        "src/chipa/PlayerUpdateAdapter.cpp",
         "src/chipa/PlayerUpdateScript.cpp",
     ):
         require(manifest, source, "chipa_module.cmake")
@@ -49,7 +61,15 @@ def main() -> int:
         "PlayerUpdateScript.cpp",
     )
     require(bootstrap, "void AddChipaPlayerbotUpdateScript();", "ModuleBootstrap.cpp")
-    require(bootstrap, "AddChipaPlayerbotUpdateScript();", "ModuleBootstrap.cpp")
+    require(bootstrap, "void RegisterPlayerUpdateAdapter();", "ModuleBootstrap.cpp")
+    require_order(
+        bootstrap,
+        (
+            "chipa::playerbots::RegisterPlayerUpdateAdapter();",
+            "AddChipaPlayerbotUpdateScript();",
+        ),
+        "ModuleBootstrap.cpp",
+    )
 
     if not (
         "typedef void (*PlayerUpdateCallback)" in bridge_h
@@ -61,7 +81,32 @@ def main() -> int:
     require(bridge_cpp, "if (!player)", "PlayerUpdateBridge.cpp")
     require(bridge_cpp, "if (callback)", "PlayerUpdateBridge.cpp")
 
-    generic_boundary = bridge_h + "\n" + bridge_cpp
+    for token in (
+        "IsManagedPlayerCallback",
+        "PlayerAiUpdateCallback",
+        "PlayerMgrUpdateCallback",
+        "ConfigurePlayerUpdateBackend",
+        "ResetPlayerUpdateBackend",
+        "RegisterPlayerUpdateAdapter",
+    ):
+        require(adapter_h, token, "PlayerUpdateAdapter.h")
+
+    require(adapter_cpp, "SetPlayerUpdateCallback(&HandlePlayerUpdate);", "PlayerUpdateAdapter.cpp")
+    require_order(
+        adapter_cpp,
+        (
+            "if (!isManagedPlayer || !isManagedPlayer(player))",
+            "updateAI(player, diff);",
+            "updateManager(player, diff);",
+        ),
+        "PlayerUpdateAdapter.cpp",
+    )
+    forbid(adapter_cpp, "UpdateAIInternal", "PlayerUpdateAdapter.cpp")
+
+    # Core-facing bridge and generic module adapter must stay free of concrete
+    # PlayerBot/session/database implementation dependencies. A later donor-
+    # specific backend may include those headers in a separate adapted TU.
+    generic_boundary = bridge_h + "\n" + bridge_cpp + "\n" + adapter_h + "\n" + adapter_cpp
     for forbidden in (
         "PlayerbotAI.h",
         "PlayerbotMgr.h",
@@ -69,7 +114,7 @@ def main() -> int:
         "WorldSession.h",
         "DatabaseEnv.h",
     ):
-        forbid(generic_boundary, forbidden, "generic bridge")
+        forbid(generic_boundary, forbidden, "generic bridge/adapter")
 
     print("PASS: Chipa G2 bridge static contract")
     print("NOTE: static contract only; no runtime gate is promoted")
