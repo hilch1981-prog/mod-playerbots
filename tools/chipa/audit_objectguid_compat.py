@@ -11,6 +11,7 @@ and bootstrap.
 
 from pathlib import Path
 import argparse
+import re
 import sys
 
 MODULE_ROOT = Path(__file__).resolve().parents[2]
@@ -22,11 +23,10 @@ DONOR_ROOTS = (
     "src/Bot/PlayerbotMgr.cpp",
 )
 
-MODERN_ONLY_MARKERS = (
-    "ObjectGuid::Empty",
-    ".ReadAsPacked()",
-    ".IsPlayer()",
-    ".GetCounter()",
+MODERN_GUID_METHODS = (
+    "ReadAsPacked",
+    "IsPlayer",
+    "GetCounter",
 )
 
 
@@ -40,6 +40,27 @@ def read(root: Path, relative: str) -> str:
 def require(text: str, token: str, where: str) -> None:
     if token not in text:
         raise AssertionError(f"{where}: missing required token: {token}")
+
+
+def modern_guid_findings(relative: str, text: str) -> list[tuple[str, str, int]]:
+    findings: list[tuple[str, str, int]] = []
+
+    empty_count = text.count("ObjectGuid::Empty")
+    if empty_count:
+        findings.append((relative, "ObjectGuid::Empty", empty_count))
+
+    # Audit modern helper calls only on variables declared as ObjectGuid. A
+    # broad `.IsPlayer()` scan creates false positives for valid SkyFire
+    # WorldObject/Unit calls such as `obj->IsPlayer()`.
+    names = set(re.findall(r"\bObjectGuid\s+([A-Za-z_]\w*)\b", text))
+    for name in sorted(names):
+        for method in MODERN_GUID_METHODS:
+            pattern = rf"\b{re.escape(name)}\s*\.\s*{method}\s*\("
+            count = len(re.findall(pattern, text))
+            if count:
+                findings.append((relative, f"{name}.{method}()", count))
+
+    return findings
 
 
 def main() -> int:
@@ -71,11 +92,7 @@ def main() -> int:
 
     findings: list[tuple[str, str, int]] = []
     for relative in DONOR_ROOTS:
-        text = read(MODULE_ROOT, relative)
-        for marker in MODERN_ONLY_MARKERS:
-            count = text.count(marker)
-            if count:
-                findings.append((relative, marker, count))
+        findings.extend(modern_guid_findings(relative, read(MODULE_ROOT, relative)))
 
     if findings:
         # Known incompatibilities still exist, so activation must remain staged.
