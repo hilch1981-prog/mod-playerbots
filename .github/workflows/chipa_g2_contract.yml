@@ -1,0 +1,25 @@
+name: Chipa G2 Bridge Contract
+
+on:
+  push:
+    branches:
+      - mop-5.4.8-v2
+    paths:
+      - chipa_module.cmake
+      - src/chipa/**
+      - tools/chipa/check_g2_bridge_contract.py
+      - .github/workflows/chipa_g2_contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify G2 bridge architecture contract
+        run: python3 tools/chipa/check_g2_bridge_contract.py
