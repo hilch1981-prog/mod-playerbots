@@ -45,6 +45,7 @@ def main() -> int:
     bridge_cpp = read("src/chipa/PlayerUpdateBridge.cpp")
     adapter_h = read("src/chipa/PlayerUpdateAdapter.h")
     adapter_cpp = read("src/chipa/PlayerUpdateAdapter.cpp")
+    fresh_h = read("src/chipa/FreshResolvedUpdate.h")
     script = read("src/chipa/PlayerUpdateScript.cpp")
     bootstrap = read("src/chipa/ModuleBootstrap.cpp")
     donor_script = read("src/Script/Playerbots.cpp")
@@ -168,6 +169,24 @@ def main() -> int:
     )
     forbid(adapter_cpp, "UpdateAIInternal", "PlayerUpdateAdapter.cpp")
 
+    # The donor-specific compatibility layer must resolve both donor-owned
+    # objects fresh on every dispatch rather than retaining raw pointers over
+    # lifecycle/SelfBot transitions. Keep the helper type-agnostic so it can be
+    # compiled and tested before donor headers are safe against the MoP core.
+    require(fresh_h, "DispatchFreshResolvedUpdates", "FreshResolvedUpdate.h")
+    require(fresh_h, "if (!player)", "FreshResolvedUpdate.h")
+    require_order(
+        fresh_h,
+        (
+            "AiType* const ai = resolveAI(player);",
+            "updateAI(ai, diff);",
+            "ManagerType* const manager = resolveManager(player);",
+            "updateManager(manager, diff);",
+        ),
+        "DispatchFreshResolvedUpdates",
+    )
+    forbid(fresh_h, "UpdateAIInternal", "FreshResolvedUpdate.h")
+
     # Lock the donor public scheduling contract independently of the generic
     # bridge. The future MoP compatibility TU may adapt ownership/lookups, but
     # it must preserve the donor's public AI -> manager update order and must
@@ -225,6 +244,8 @@ def main() -> int:
         + adapter_h
         + "\n"
         + adapter_cpp
+        + "\n"
+        + fresh_h
     )
     for forbidden in (
         "PlayerbotAI.h",
@@ -238,6 +259,7 @@ def main() -> int:
     print("PASS: Chipa G2 integration bridge static contract")
     print("PASS: donor public scheduling contract AI -> manager")
     print("PASS: donor direct-map accessor contract for Chipa compatibility TU")
+    print("PASS: donor objects are resolved fresh per dispatch without raw-pointer caching")
     print("NOTE: static contract only; no runtime gate is promoted")
     return 0
 
