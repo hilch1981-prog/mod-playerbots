@@ -7,6 +7,7 @@ on:
     paths:
       - chipa_module.cmake
       - src/chipa/**
+      - tests/chipa/**
       - tools/chipa/check_g2_bridge_contract.py
       - .github/workflows/chipa_g2_contract.yml
   workflow_dispatch:
@@ -23,3 +24,15 @@ jobs:
 
       - name: Verify G2 bridge architecture contract
         run: python3 tools/chipa/check_g2_bridge_contract.py
+
+      - name: Compile adapter contract harness
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror \
+            -Isrc/chipa \
+            src/chipa/PlayerUpdateBridge.cpp \
+            src/chipa/PlayerUpdateAdapter.cpp \
+            tests/chipa/player_update_adapter_test.cpp \
+            -o /tmp/chipa-player-update-adapter-test
+
+      - name: Run adapter contract harness
+        run: /tmp/chipa-player-update-adapter-test
