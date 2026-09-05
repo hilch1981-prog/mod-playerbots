@@ -31,15 +31,19 @@ namespace playerbots
             if (!player)
                 return false;
 
-            if (ResolveAI && ResolveAI(player))
+            // These function pointers are compile-time template arguments and
+            // therefore cannot be null. Avoid redundant pointer tests here:
+            // with -Waddress -Werror GCC correctly diagnoses them as always
+            // true. The resolved donor object itself remains nullable.
+            if (ResolveAI(player))
                 return true;
 
-            return ResolveManager && ResolveManager(player);
+            return ResolveManager(player) != nullptr;
         }
 
         static void UpdateAI(Player* player, std::uint32_t diff)
         {
-            if (!player || !ResolveAI || !ApplyAIUpdate)
+            if (!player)
                 return;
 
             AiType* const ai = ResolveAI(player);
@@ -49,7 +53,7 @@ namespace playerbots
 
         static void UpdateManager(Player* player, std::uint32_t diff)
         {
-            if (!player || !ResolveManager || !ApplyManagerUpdate)
+            if (!player)
                 return;
 
             ManagerType* const manager = ResolveManager(player);
