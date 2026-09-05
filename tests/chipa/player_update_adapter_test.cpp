@@ -40,6 +40,20 @@ namespace
         g_events.push_back(2);
     }
 
+    void UpdateAIReplacement(Player* player, std::uint32_t diff)
+    {
+        assert(player == g_managed);
+        g_lastDiff = diff;
+        g_events.push_back(3);
+    }
+
+    void UpdateManagerReplacement(Player* player, std::uint32_t diff)
+    {
+        assert(player == g_managed);
+        assert(diff == g_lastDiff);
+        g_events.push_back(4);
+    }
+
     void OnLogin(Player* player)
     {
         assert(player != nullptr);
@@ -81,6 +95,32 @@ int main()
     assert(g_events[0] == 1);
     assert(g_events[1] == 2);
     assert(g_lastDiff == 33);
+
+    // Replacing the backend must make the next dispatch use the new callback
+    // generation as a coherent set rather than mixing old/new work callbacks.
+    g_events.clear();
+    chipa::playerbots::PlayerUpdateBackend replacement;
+    replacement.isManagedPlayer = &IsManaged;
+    replacement.updateAI = &UpdateAIReplacement;
+    replacement.updateManager = &UpdateManagerReplacement;
+    chipa::playerbots::ConfigurePlayerUpdateBackend(replacement);
+    chipa::playerbots::DispatchPlayerUpdate(&bot, 34);
+    assert(g_events.size() == 2);
+    assert(g_events[0] == 3);
+    assert(g_events[1] == 4);
+    assert(g_lastDiff == 34);
+
+    // A partially populated backend is valid while compatibility work is
+    // staged; absent work callbacks must remain safe no-ops.
+    g_events.clear();
+    chipa::playerbots::PlayerUpdateBackend aiOnly;
+    aiOnly.isManagedPlayer = &IsManaged;
+    aiOnly.updateAI = &UpdateAI;
+    chipa::playerbots::ConfigurePlayerUpdateBackend(aiOnly);
+    chipa::playerbots::DispatchPlayerUpdate(&bot, 35);
+    assert(g_events.size() == 1);
+    assert(g_events[0] == 1);
+    assert(g_lastDiff == 35);
 
     g_events.clear();
     chipa::playerbots::ResetPlayerUpdateBackend();
