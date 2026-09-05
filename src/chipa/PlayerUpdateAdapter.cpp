@@ -9,6 +9,7 @@ namespace
     std::atomic<chipa::playerbots::PlayerAiUpdateCallback> g_updateAI(nullptr);
     std::atomic<chipa::playerbots::PlayerMgrUpdateCallback> g_updateManager(nullptr);
     std::atomic<std::uint64_t> g_backendGeneration(0);
+    std::atomic_flag g_backendWriteLock = ATOMIC_FLAG_INIT;
 
     struct BackendSnapshot
     {
@@ -41,6 +42,18 @@ namespace
             if (generationBefore == generationAfter)
                 return snapshot;
         }
+    }
+
+    void LockBackendWriter()
+    {
+        while (g_backendWriteLock.test_and_set(std::memory_order_acquire))
+        {
+        }
+    }
+
+    void UnlockBackendWriter()
+    {
+        g_backendWriteLock.clear(std::memory_order_release);
     }
 
     void BeginBackendWrite()
@@ -79,23 +92,27 @@ namespace playerbots
 {
     void ConfigurePlayerUpdateBackend(PlayerUpdateBackend const& backend)
     {
-        // Publish the callback trio as one coherent generation. Runtime backend
-        // replacement is uncommon, but keeping reconfiguration coherent avoids
-        // pairing a predicate from one backend with work callbacks from another.
+        // Serialize writers before toggling the seqlock generation. Without a
+        // single-writer critical section two concurrent reconfigurations could
+        // make the generation appear even while one writer is still publishing.
+        LockBackendWriter();
         BeginBackendWrite();
         g_isManagedPlayer.store(backend.isManagedPlayer, std::memory_order_relaxed);
         g_updateAI.store(backend.updateAI, std::memory_order_relaxed);
         g_updateManager.store(backend.updateManager, std::memory_order_relaxed);
         EndBackendWrite();
+        UnlockBackendWriter();
     }
 
     void ResetPlayerUpdateBackend()
     {
+        LockBackendWriter();
         BeginBackendWrite();
         g_isManagedPlayer.store(nullptr, std::memory_order_relaxed);
         g_updateAI.store(nullptr, std::memory_order_relaxed);
         g_updateManager.store(nullptr, std::memory_order_relaxed);
         EndBackendWrite();
+        UnlockBackendWriter();
     }
 
     void RegisterPlayerUpdateAdapter()
