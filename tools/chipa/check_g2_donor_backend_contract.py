@@ -8,6 +8,7 @@ used to promote G1 or G2.
 """
 
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,6 +48,7 @@ def main() -> int:
     donor_mgr_h = read("src/Bot/PlayerbotMgr.h")
     donor_base_h = read("src/Bot/Engine/PlayerbotAIBase.h")
     donor_base_cpp = read("src/Bot/Engine/PlayerbotAIBase.cpp")
+    donor_perf_cpp = read("src/Bot/Debug/PerfMonitor.cpp")
 
     for token in (
         '#include "FreshResolvedBackend.h"',
@@ -103,6 +105,19 @@ def main() -> int:
     require(donor_base_cpp, '#include "PerfMonitor.h"', "PlayerbotAIBase.cpp narrow perf dependency")
     forbid(donor_base_cpp, '#include "Playerbots.h"', "PlayerbotAIBase.cpp narrow perf dependency")
 
+    # Chipa/SkyFire 5.4.8 uses TC_LOG_* with printf-style varargs, while the
+    # modern donor PerfMonitor used AzerothCore LOG_INFO with fmt placeholders.
+    # Keep this closure on target-native logging and narrow direct dependencies.
+    require(donor_perf_cpp, '#include "Log.h"', "PerfMonitor.cpp SkyFire logging")
+    require(donor_perf_cpp, '#include "PlayerbotAIConfig.h"', "PerfMonitor.cpp config dependency")
+    require(donor_perf_cpp, "TC_LOG_INFO(", "PerfMonitor.cpp SkyFire logging")
+    require(donor_perf_cpp, "%7.3f%%", "PerfMonitor.cpp printf formatting")
+    forbid(donor_perf_cpp, '#include "Playerbots.h"', "PerfMonitor.cpp narrow dependencies")
+    if re.search(r"(?<!TC_)LOG_INFO\(", donor_perf_cpp):
+        raise AssertionError("PerfMonitor.cpp SkyFire logging: legacy donor LOG_INFO call remains")
+    if re.search(r'"[^"\n]*\{:[^"\n]*"', donor_perf_cpp):
+        raise AssertionError("PerfMonitor.cpp SkyFire logging: fmt-style placeholder remains")
+
     # Activation is a separate gate. Until the donor source closure is adapted,
     # compiling this TU would introduce unresolved/incompatible donor symbols.
     # Keep both the manifest and bootstrap inactive so current G1 evidence is
@@ -115,6 +130,7 @@ def main() -> int:
     print("PASS: no UpdateAIInternal/session dependency/raw-pointer cache introduced")
     print("PASS: PlayerbotAIBase scheduler uses SkyFire-compatible GetGUIDLow() staggering")
     print("PASS: PlayerbotAIBase scheduler keeps a narrow PerfMonitor-only dependency")
+    print("PASS: PerfMonitor uses SkyFire TC_LOG_INFO printf logging with narrow dependencies")
     print("PASS: donor backend remains inactive pending source-closure build evidence")
     print("NOTE: static staging evidence only; no runtime gate is promoted")
     return 0
