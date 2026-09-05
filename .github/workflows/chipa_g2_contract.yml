@@ -29,6 +29,7 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror \
             -Isrc/chipa \
+            src/chipa/PlayerLifecycleBridge.cpp \
             src/chipa/PlayerUpdateBridge.cpp \
             src/chipa/PlayerUpdateAdapter.cpp \
             tests/chipa/player_update_adapter_test.cpp \

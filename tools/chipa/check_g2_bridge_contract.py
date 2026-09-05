@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static contract checks for the Chipa MoP 5.4.8 G2 player-update bridge.
+"""Static contract checks for the Chipa MoP 5.4.8 G2 integration bridge.
 
 These checks intentionally prove only architecture/wiring invariants. They do not
 claim runtime behavior or promote G1/G2 gates.
@@ -39,6 +39,8 @@ def require_order(text: str, tokens: tuple[str, ...], where: str) -> None:
 
 def main() -> int:
     manifest = read("chipa_module.cmake")
+    lifecycle_h = read("src/chipa/PlayerLifecycleBridge.h")
+    lifecycle_cpp = read("src/chipa/PlayerLifecycleBridge.cpp")
     bridge_h = read("src/chipa/PlayerUpdateBridge.h")
     bridge_cpp = read("src/chipa/PlayerUpdateBridge.cpp")
     adapter_h = read("src/chipa/PlayerUpdateAdapter.h")
@@ -48,12 +50,17 @@ def main() -> int:
 
     for source in (
         "src/chipa/ModuleBootstrap.cpp",
+        "src/chipa/PlayerLifecycleBridge.cpp",
         "src/chipa/PlayerUpdateBridge.cpp",
         "src/chipa/PlayerUpdateAdapter.cpp",
         "src/chipa/PlayerUpdateScript.cpp",
     ):
         require(manifest, source, "chipa_module.cmake")
 
+    require(script, "void OnLogin(Player* player) override", "PlayerUpdateScript.cpp")
+    require(script, "chipa::playerbots::DispatchPlayerLogin(player);", "PlayerUpdateScript.cpp")
+    require(script, "void OnLogout(Player* player) override", "PlayerUpdateScript.cpp")
+    require(script, "chipa::playerbots::DispatchPlayerLogout(player);", "PlayerUpdateScript.cpp")
     require(script, "void OnUpdate(Player* player, uint32 diff) override", "PlayerUpdateScript.cpp")
     require(
         script,
@@ -72,6 +79,22 @@ def main() -> int:
         ),
         "Addmod_playerbotsScripts body",
     )
+
+    if not (
+        "typedef void (*PlayerLifecycleCallback)" in lifecycle_h
+        or "using PlayerLifecycleCallback" in lifecycle_h
+    ):
+        raise AssertionError("PlayerLifecycleBridge.h: PlayerLifecycleCallback declaration missing")
+    for token in (
+        "SetPlayerLoginCallback",
+        "SetPlayerLogoutCallback",
+        "DispatchPlayerLogin",
+        "DispatchPlayerLogout",
+    ):
+        require(lifecycle_h, token, "PlayerLifecycleBridge.h")
+        require(lifecycle_cpp, token, "PlayerLifecycleBridge.cpp")
+    require(lifecycle_cpp, "if (!player)", "PlayerLifecycleBridge.cpp")
+    require(lifecycle_cpp, "if (callback)", "PlayerLifecycleBridge.cpp")
 
     if not (
         "typedef void (*PlayerUpdateCallback)" in bridge_h
@@ -105,10 +128,22 @@ def main() -> int:
     )
     forbid(adapter_cpp, "UpdateAIInternal", "PlayerUpdateAdapter.cpp")
 
-    # Core-facing bridge and generic module adapter must stay free of concrete
+    # Core-facing bridges and generic module adapter must stay free of concrete
     # PlayerBot/session/database implementation dependencies. A later donor-
     # specific backend may include those headers in a separate adapted TU.
-    generic_boundary = bridge_h + "\n" + bridge_cpp + "\n" + adapter_h + "\n" + adapter_cpp
+    generic_boundary = (
+        lifecycle_h
+        + "\n"
+        + lifecycle_cpp
+        + "\n"
+        + bridge_h
+        + "\n"
+        + bridge_cpp
+        + "\n"
+        + adapter_h
+        + "\n"
+        + adapter_cpp
+    )
     for forbidden in (
         "PlayerbotAI.h",
         "PlayerbotMgr.h",
@@ -118,7 +153,7 @@ def main() -> int:
     ):
         forbid(generic_boundary, forbidden, "generic bridge/adapter")
 
-    print("PASS: Chipa G2 bridge static contract")
+    print("PASS: Chipa G2 integration bridge static contract")
     print("NOTE: static contract only; no runtime gate is promoted")
     return 0
 

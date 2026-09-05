@@ -1,3 +1,4 @@
+#include "PlayerLifecycleBridge.h"
 #include "PlayerUpdateAdapter.h"
 #include "PlayerUpdateBridge.h"
 
@@ -17,6 +18,8 @@ namespace
     Player* g_managed = nullptr;
     std::vector<int> g_events;
     std::uint32_t g_lastDiff = 0;
+    int g_loginCount = 0;
+    int g_logoutCount = 0;
 
     bool IsManaged(Player* player)
     {
@@ -35,6 +38,18 @@ namespace
         assert(player == g_managed);
         assert(diff == g_lastDiff);
         g_events.push_back(2);
+    }
+
+    void OnLogin(Player* player)
+    {
+        assert(player != nullptr);
+        ++g_loginCount;
+    }
+
+    void OnLogout(Player* player)
+    {
+        assert(player != nullptr);
+        ++g_logoutCount;
     }
 }
 
@@ -76,9 +91,31 @@ int main()
     chipa::playerbots::DispatchPlayerUpdate(&bot, 55);
     assert(g_events.empty());
 
-    // The generic bridge itself also rejects a null Player pointer.
+    // The generic bridges reject null Player pointers and are no-ops until a
+    // concrete lifecycle backend is installed.
     chipa::playerbots::DispatchPlayerUpdate(nullptr, 66);
-    assert(g_events.empty());
+    chipa::playerbots::DispatchPlayerLogin(nullptr);
+    chipa::playerbots::DispatchPlayerLogout(nullptr);
+    chipa::playerbots::DispatchPlayerLogin(&human);
+    chipa::playerbots::DispatchPlayerLogout(&human);
+    assert(g_loginCount == 0);
+    assert(g_logoutCount == 0);
+
+    chipa::playerbots::SetPlayerLoginCallback(&OnLogin);
+    chipa::playerbots::SetPlayerLogoutCallback(&OnLogout);
+    chipa::playerbots::DispatchPlayerLogin(&human);
+    chipa::playerbots::DispatchPlayerLogout(&human);
+    assert(g_loginCount == 1);
+    assert(g_logoutCount == 1);
+
+    // Clearing the callbacks restores the no-op path used before the concrete
+    // SelfBot ownership backend is available.
+    chipa::playerbots::SetPlayerLoginCallback(nullptr);
+    chipa::playerbots::SetPlayerLogoutCallback(nullptr);
+    chipa::playerbots::DispatchPlayerLogin(&bot);
+    chipa::playerbots::DispatchPlayerLogout(&bot);
+    assert(g_loginCount == 1);
+    assert(g_logoutCount == 1);
 
     return 0;
 }
