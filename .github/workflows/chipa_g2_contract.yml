@@ -8,6 +8,7 @@ on:
       - chipa_module.cmake
       - src/chipa/**
       - src/Bot/Engine/PlayerbotAIBase.cpp
+      - src/Bot/Debug/PerfMonitor.cpp
       - tests/chipa/**
       - tools/chipa/check_g2_bridge_contract.py
       - tools/chipa/check_g2_donor_backend_contract.py
