@@ -47,6 +47,7 @@ def main() -> int:
     adapter_cpp = read("src/chipa/PlayerUpdateAdapter.cpp")
     script = read("src/chipa/PlayerUpdateScript.cpp")
     bootstrap = read("src/chipa/ModuleBootstrap.cpp")
+    donor_script = read("src/Script/Playerbots.cpp")
 
     for source in (
         "src/chipa/ModuleBootstrap.cpp",
@@ -118,9 +119,40 @@ def main() -> int:
 
     require(adapter_cpp, "SetPlayerUpdateCallback(&HandlePlayerUpdate);", "PlayerUpdateAdapter.cpp")
     require(adapter_cpp, "g_backendGeneration", "PlayerUpdateAdapter.cpp")
+    require(adapter_cpp, "std::atomic_flag g_backendWriteLock = ATOMIC_FLAG_INIT;", "PlayerUpdateAdapter.cpp")
     require(adapter_cpp, "BackendSnapshot LoadBackendSnapshot()", "PlayerUpdateAdapter.cpp")
+    require(adapter_cpp, "LockBackendWriter();", "PlayerUpdateAdapter.cpp")
     require(adapter_cpp, "BeginBackendWrite();", "PlayerUpdateAdapter.cpp")
     require(adapter_cpp, "EndBackendWrite();", "PlayerUpdateAdapter.cpp")
+    require(adapter_cpp, "UnlockBackendWriter();", "PlayerUpdateAdapter.cpp")
+    configure_body = adapter_cpp.split("void ConfigurePlayerUpdateBackend", 1)[1].split("void ResetPlayerUpdateBackend", 1)[0]
+    require_order(
+        configure_body,
+        (
+            "LockBackendWriter();",
+            "BeginBackendWrite();",
+            "g_isManagedPlayer.store",
+            "g_updateAI.store",
+            "g_updateManager.store",
+            "EndBackendWrite();",
+            "UnlockBackendWriter();",
+        ),
+        "ConfigurePlayerUpdateBackend",
+    )
+    reset_body = adapter_cpp.split("void ResetPlayerUpdateBackend", 1)[1].split("void RegisterPlayerUpdateAdapter", 1)[0]
+    require_order(
+        reset_body,
+        (
+            "LockBackendWriter();",
+            "BeginBackendWrite();",
+            "g_isManagedPlayer.store",
+            "g_updateAI.store",
+            "g_updateManager.store",
+            "EndBackendWrite();",
+            "UnlockBackendWriter();",
+        ),
+        "ResetPlayerUpdateBackend",
+    )
     require_order(
         adapter_cpp.split("void HandlePlayerUpdate", 1)[1].split("}\n}", 1)[0],
         (
@@ -133,6 +165,25 @@ def main() -> int:
         "HandlePlayerUpdate",
     )
     forbid(adapter_cpp, "UpdateAIInternal", "PlayerUpdateAdapter.cpp")
+
+    # Lock the donor public scheduling contract independently of the generic
+    # bridge. The future MoP compatibility TU may adapt ownership/lookups, but
+    # it must preserve the donor's public AI -> manager update order and must
+    # never shortcut into UpdateAIInternal().
+    donor_marker = "void OnPlayerAfterUpdate(Player* player, uint32 diff) override"
+    require(donor_script, donor_marker, "Playerbots.cpp")
+    donor_hook = donor_script.split(donor_marker, 1)[1].split("bool OnPlayerCanUseChat", 1)[0]
+    require_order(
+        donor_hook,
+        (
+            "PlayerbotsMgr::instance().GetPlayerbotAI(player)",
+            "botAI->UpdateAI(diff);",
+            "GET_PLAYERBOT_MGR(player)",
+            "playerbotMgr->UpdateAI(diff);",
+        ),
+        "PlayerbotsPlayerScript::OnPlayerAfterUpdate",
+    )
+    forbid(donor_hook, "UpdateAIInternal(", "PlayerbotsPlayerScript::OnPlayerAfterUpdate")
 
     # Core-facing bridges and generic module adapter must stay free of concrete
     # PlayerBot/session/database implementation dependencies. A later donor-
@@ -160,6 +211,7 @@ def main() -> int:
         forbid(generic_boundary, forbidden, "generic bridge/adapter")
 
     print("PASS: Chipa G2 integration bridge static contract")
+    print("PASS: donor public scheduling contract AI -> manager")
     print("NOTE: static contract only; no runtime gate is promoted")
     return 0
 
