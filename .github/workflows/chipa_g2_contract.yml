@@ -23,6 +23,7 @@ on:
       - tools/chipa/audit_objectguid_compat.py
       - tools/chipa/audit_cpp14_root_closure.py
       - tools/chipa/adapt_cpp14_playerbotmgr.py
+      - tools/chipa/adapt_cpp14_playerbotai.py
       - tools/chipa/check_cpp14_playerbotmgr_plan.py
       - tools/chipa/check_cpp14_playerbotai_plan.py
       - .github/workflows/chipa_g2_contract.yml
@@ -74,7 +75,10 @@ jobs:
       - name: Verify PlayerbotMgr C++14 adaptation plan/state
         run: python3 tools/chipa/check_cpp14_playerbotmgr_plan.py
 
-      - name: Verify PlayerbotAI C++14 adaptation plan
+      - name: Require applied PlayerbotAI C++14 source state
+        run: python3 tools/chipa/adapt_cpp14_playerbotai.py --require-adapted
+
+      - name: Verify PlayerbotAI C++14 adaptation plan/state
         run: python3 tools/chipa/check_cpp14_playerbotai_plan.py
 
       - name: Verify G2 bridge architecture contract
