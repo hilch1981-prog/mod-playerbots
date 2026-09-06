@@ -4,8 +4,9 @@
 The donor's modern ObjectGuid assumptions are not valid for the target runtime.
 This contract reads authoritative MOP_V2_Repack producers and fails if their
 wire layout or target-native GUID classification surface drifts from the staged
-compatibility readers. It also pins the current PlayerbotAI dismount call site
-to the target-native reader so donor packed-GUID parsing cannot regress silently.
+compatibility readers. It also pins current PlayerbotAI dismount/emote call
+sites to target-native parsing and classification so donor ObjectGuid behavior
+cannot regress silently.
 """
 
 from pathlib import Path
@@ -108,16 +109,25 @@ def main() -> int:
     )
 
     require_once(playerbot_ai, '#include "Mop548UnitPacketCompat.h"', "PlayerbotAI.cpp unit compat include")
+    require_once(playerbot_ai, '#include "ObjectDefines.h"', "PlayerbotAI.cpp ObjectDefines include")
     require_once(
         playerbot_ai,
         "ReadDismountForGuid(p, guid, bot->GetGUID())",
         "PlayerbotAI.cpp SMSG_DISMOUNT",
     )
+    require_once(
+        playerbot_ai,
+        "chipa::mop548::ReadEmote(p, emoteId, source);",
+        "PlayerbotAI.cpp SMSG_EMOTE reader",
+    )
+    require_once(playerbot_ai, "if (IS_PLAYER_GUID(source))", "PlayerbotAI.cpp SMSG_EMOTE classification")
+    if "source.IsPlayer()" in playerbot_ai:
+        raise AssertionError("PlayerbotAI.cpp: donor ObjectGuid::IsPlayer() emote classifier reintroduced")
 
     print("PASS: live MoP 5.4.8 SMSG_DISMOUNT layout matches staged compatibility reader")
     print("PASS: PlayerbotAI dismount call site uses target-native identity-gated reader")
     print("PASS: live MoP 5.4.8 SMSG_EMOTE layout is uint32 emote id -> raw uint64 GUID")
-    print("PASS: target-native IS_PLAYER_GUID(uint64) predicate is available for donor adaptation")
+    print("PASS: PlayerbotAI emote call site uses raw uint64 + target IS_PLAYER_GUID classification")
     print("NOTE: packet-layout/call-site contract only; donor backend remains inactive and no gate is promoted")
     return 0
 
