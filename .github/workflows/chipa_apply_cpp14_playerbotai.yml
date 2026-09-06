@@ -1,5 +1,6 @@
 name: Chipa Apply PlayerbotAI C++14 Slice
 
+# Temporary reviewed-source applicator; remove after the slice is committed and ratcheted.
 on:
   push:
     branches:
