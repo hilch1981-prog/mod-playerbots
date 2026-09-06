@@ -5,6 +5,9 @@ This is an activation guard, not a compile PASS. The Chipa/SkyFire runtime
 explicitly builds GCC sources with -std=c++14. The PlayerBot donor has evolved
 past that baseline in a few root-closure files, so those constructs must be
 adapted before the concrete donor backend is allowed into chipa_module.cmake.
+
+The known blocker set is also a ratchet: counts may decrease as compatibility
+work lands, but new post-C++14 constructs or count increases fail CI.
 """
 
 from pathlib import Path
@@ -40,6 +43,17 @@ POST_CPP14_PATTERNS = (
     ("std::erase_if", re.compile(r"\bstd::erase_if\b")),
 )
 
+# Baseline captured before C++14 adaptation starts. This is intentionally a
+# ceiling, not an expected exact count: every reduction is allowed, while any
+# increase or newly introduced marker fails the contract.
+BLOCKER_CEILING = {
+    ("src/Bot/PlayerbotAI.cpp", "std::string starts_with()/ends_with()"): 1,
+    ("src/Bot/PlayerbotMgr.cpp", "unordered/container contains()"): 1,
+    ("src/Bot/PlayerbotMgr.cpp", "std::string starts_with()/ends_with()"): 1,
+    ("src/Bot/PlayerbotMgr.cpp", "structured binding"): 1,
+    ("src/Bot/PlayerbotMgr.cpp", "C++17 maybe_unused attribute"): 1,
+}
+
 
 def read(root: Path, relative: str) -> str:
     path = root / relative
@@ -55,6 +69,15 @@ def findings_for(relative: str, text: str) -> list[tuple[str, str, int]]:
         if count:
             findings.append((relative, label, count))
     return findings
+
+
+def verify_ratchet(findings: list[tuple[str, str, int]]) -> None:
+    for relative, marker, count in findings:
+        ceiling = BLOCKER_CEILING.get((relative, marker), 0)
+        if count > ceiling:
+            raise AssertionError(
+                f"C++14 blocker regression: {relative}: {marker} x{count} exceeds ceiling x{ceiling}"
+            )
 
 
 def main() -> int:
@@ -77,6 +100,8 @@ def main() -> int:
     for relative in DONOR_ROOTS:
         findings.extend(findings_for(relative, read(MODULE_ROOT, relative)))
 
+    verify_ratchet(findings)
+
     if findings:
         if "src/chipa/DonorPlayerbotBackend.cpp" in manifest:
             raise AssertionError(
@@ -88,6 +113,7 @@ def main() -> int:
             )
 
     print("PASS: live Chipa GCC build baseline is explicitly -std=c++14")
+    print("PASS: audited post-C++14 blocker counts did not increase")
     if findings:
         print("PENDING: post-C++14 donor syntax still requires C++14 adaptation:")
         for relative, marker, count in findings:
