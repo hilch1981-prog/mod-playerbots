@@ -65,14 +65,97 @@ def read(root: Path, relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def strip_cpp_comments(text: str) -> str:
-    """Remove comments before syntax counting so examples do not become blockers."""
-    without_blocks = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
-    return "\n".join(line.split("//", 1)[0] for line in without_blocks.splitlines())
+def strip_cpp_non_code(text: str) -> str:
+    """Blank comments and quoted literals while preserving code/newline positions.
+
+    A simple ``line.split('//')`` is unsafe for this guard because URLs or other
+    string literals containing ``//`` can hide real code that appears later on
+    the same line. Likewise, syntax examples inside strings must not become
+    blockers. This small lexer handles the ordinary comments/string/character
+    literals used by the audited donor roots and preserves newlines so future
+    diagnostics can safely derive source locations from the sanitized text.
+    """
+    chars = list(text)
+    length = len(text)
+    i = 0
+
+    def blank(index: int) -> None:
+        if chars[index] != "\n":
+            chars[index] = " "
+
+    while i < length:
+        if text.startswith("//", i):
+            blank(i)
+            if i + 1 < length:
+                blank(i + 1)
+            i += 2
+            while i < length and text[i] != "\n":
+                blank(i)
+                i += 1
+            continue
+
+        if text.startswith("/*", i):
+            blank(i)
+            if i + 1 < length:
+                blank(i + 1)
+            i += 2
+            while i < length:
+                if text.startswith("*/", i):
+                    blank(i)
+                    if i + 1 < length:
+                        blank(i + 1)
+                    i += 2
+                    break
+                blank(i)
+                i += 1
+            continue
+
+        if text[i] in ('"', "'"):
+            quote = text[i]
+            blank(i)
+            i += 1
+            while i < length:
+                if text[i] == "\\":
+                    blank(i)
+                    i += 1
+                    if i < length:
+                        blank(i)
+                        i += 1
+                    continue
+                if text[i] == quote:
+                    blank(i)
+                    i += 1
+                    break
+                blank(i)
+                i += 1
+            continue
+
+        i += 1
+
+    return "".join(chars)
+
+
+def verify_lexer_sanity() -> None:
+    """Pin false-positive and false-negative cases relevant to this ratchet."""
+    code_after_url = 'std::string url = "https://example.invalid"; bots.contains(guid);\n'
+    sanitized = strip_cpp_non_code(code_after_url)
+    contains_pattern = POST_CPP14_PATTERNS[0][1]
+    if not contains_pattern.search(sanitized):
+        raise AssertionError("C++14 audit lexer hid code after // inside a string literal")
+
+    examples_only = (
+        '// bots.contains(guid);\n'
+        'const char* text = "bots.contains(guid) and value.starts_with(prefix)";\n'
+        '/* value.starts_with(prefix); */\n'
+    )
+    sanitized_examples = strip_cpp_non_code(examples_only)
+    for label, pattern in POST_CPP14_PATTERNS:
+        if pattern.search(sanitized_examples):
+            raise AssertionError(f"C++14 audit lexer counted non-code syntax example: {label}")
 
 
 def findings_for(relative: str, text: str) -> list[tuple[str, str, int]]:
-    code = strip_cpp_comments(text)
+    code = strip_cpp_non_code(text)
     findings: list[tuple[str, str, int]] = []
     for label, pattern in POST_CPP14_PATTERNS:
         count = len(pattern.findall(code))
@@ -95,6 +178,8 @@ def main() -> int:
     parser.add_argument("runtime_root", type=Path)
     args = parser.parse_args()
     runtime_root = args.runtime_root.resolve()
+
+    verify_lexer_sanity()
 
     gcc_settings = read(runtime_root, "cmake/compiler/gcc/settings.cmake")
     if '-std=c++14' not in gcc_settings:
@@ -122,6 +207,7 @@ def main() -> int:
                 "post-C++14 blockers remain but donor backend is active in ModuleBootstrap.cpp"
             )
 
+    print("PASS: C++14 audit lexer sanity checks passed")
     print("PASS: live Chipa GCC build baseline is explicitly -std=c++14")
     print("PASS: audited post-C++14 blocker counts did not increase")
     if findings:
