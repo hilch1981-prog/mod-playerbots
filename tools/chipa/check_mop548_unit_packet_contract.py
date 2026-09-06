@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Pin Chipa MoP 5.4.8 unit packet layouts used by staged PlayerBot code.
 
-The donor's ObjectGuid::ReadAsPacked() assumption for SMSG_DISMOUNT is not
-valid for the target runtime. This contract reads the authoritative
-MOP_V2_Repack Unit.cpp producer and fails if its GUID mask/byte order drifts
-from the staged compatibility reader.
+The donor's modern ObjectGuid assumptions are not valid for the target runtime.
+This contract reads authoritative MOP_V2_Repack producers and fails if their
+wire layout or target-native GUID classification surface drifts from the staged
+compatibility readers.
 """
 
 from pathlib import Path
@@ -54,10 +54,14 @@ def main() -> int:
 
     unit_cpp = read(runtime_root, "src/server/game/Entities/Unit/Unit.cpp")
     bytebuffer_h = read(runtime_root, "src/server/shared/Packets/ByteBuffer.h")
+    object_defines_h = read(runtime_root, "src/server/game/Entities/Object/ObjectDefines.h")
 
     for token in ("void ReadGuidMask", "void ReadGuidBytes"):
         if token not in bytebuffer_h:
             raise AssertionError(f"ByteBuffer.h: missing target-native helper: {token}")
+
+    if "bool IS_PLAYER_GUID(uint64 guid)" not in object_defines_h:
+        raise AssertionError("ObjectDefines.h: missing target-native IS_PLAYER_GUID(uint64) predicate")
 
     dismount = packet_slice(unit_cpp, "SMSG_DISMOUNT")
     require_order(
@@ -83,7 +87,19 @@ def main() -> int:
         ],
     )
 
+    emote = packet_slice(unit_cpp, "SMSG_EMOTE")
+    require_order(
+        emote,
+        "SMSG_EMOTE",
+        [
+            "data << uint32(emote->Id);",
+            "data << uint64(GetGUID());",
+        ],
+    )
+
     print("PASS: live MoP 5.4.8 SMSG_DISMOUNT layout matches staged compatibility reader")
+    print("PASS: live MoP 5.4.8 SMSG_EMOTE layout is uint32 emote id -> raw uint64 GUID")
+    print("PASS: target-native IS_PLAYER_GUID(uint64) predicate is available for donor adaptation")
     print("NOTE: packet-layout contract only; donor backend remains inactive and no gate is promoted")
     return 0
 
