@@ -26,6 +26,7 @@ on:
       - tools/chipa/adapt_cpp14_playerbotai.py
       - tools/chipa/check_cpp14_playerbotmgr_plan.py
       - tools/chipa/check_cpp14_playerbotai_plan.py
+      - tools/chipa/check_donor_compile_probe_contract.py
       - .github/workflows/chipa_g2_contract.yml
   workflow_dispatch:
 
@@ -68,6 +69,9 @@ jobs:
 
       - name: Inventory C++14 root-closure blockers
         run: python3 tools/chipa/audit_cpp14_root_closure.py .chipa-runtime
+
+      - name: Verify donor compile-probe boundary
+        run: python3 tools/chipa/check_donor_compile_probe_contract.py
 
       - name: Require applied PlayerbotMgr C++14 source state
         run: python3 tools/chipa/adapt_cpp14_playerbotmgr.py --require-adapted
