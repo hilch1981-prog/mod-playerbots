@@ -1182,7 +1182,7 @@ void PlayerbotAI::HandleBotOutgoingPacket(WorldPacket const& packet)
 
                 p >> msgtype >> lang;
                 p >> guid1 >> unused;
-                if (guid1.IsEmpty() || p.size() > p.DEFAULT_SIZE)
+                if (static_cast<uint64>(guid1) == 0 || p.size() > p.DEFAULT_SIZE)
                     return;
 
                 if (lang == LANG_ADDON)

@@ -21,6 +21,7 @@
 #include "Group.h"
 #include "GuildMgr.h"
 #include "ObjectAccessor.h"
+#include "ObjectDefines.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "PlayerbotAIConfig.h"
@@ -103,7 +104,7 @@ void PlayerbotHolder::AddPlayerBot(ObjectGuid playerGuid, uint32 masterAccountId
     bool sameAccount = sPlayerbotAIConfig.allowAccountBots && accountId == masterAccountId;
     Guild* guild = masterPlayer ? sGuildMgr->GetGuildById(masterPlayer->GetGuildId()) : nullptr;
     bool sameGuild = sPlayerbotAIConfig.allowGuildBots && guild && guild->GetMember(playerGuid);
-    bool addClassBot = sRandomPlayerbotMgr.IsAddclassBot(playerGuid.GetCounter());
+    bool addClassBot = sRandomPlayerbotMgr.IsAddclassBot(GUID_LOPART(static_cast<uint64>(playerGuid)));
     bool linkedAccount = sPlayerbotAIConfig.allowTrustedAccountBots && IsAccountLinked(accountId, masterAccountId);
 
     bool allowed = true;
@@ -458,9 +459,9 @@ Player* PlayerbotHolder::GetPlayerBot(ObjectGuid playerGuid) const
     return (it == playerBots.end()) ? 0 : it->second;
 }
 
-Player* PlayerbotHolder::GetPlayerBot(ObjectGuid::LowType lowGuid) const
+Player* PlayerbotHolder::GetPlayerBot(uint32 lowGuid) const
 {
-    ObjectGuid playerGuid = ObjectGuid::Create<HighGuid::Player>(lowGuid);
+    ObjectGuid playerGuid(MAKE_NEW_GUID(lowGuid, 0, HIGHGUID_PLAYER));
     PlayerBotMap::const_iterator it = playerBots.find(playerGuid);
     return (it == playerBots.end()) ? 0 : it->second;
 }
@@ -681,10 +682,10 @@ void PlayerbotHolder::OnBotLogin(Player* const bot)
 std::string const PlayerbotHolder::ProcessBotCommand(std::string const cmd, ObjectGuid guid, ObjectGuid masterguid,
                                                      bool admin, uint32 masterAccountId, uint32)
 {
-    if (!sPlayerbotAIConfig.enabled || guid.IsEmpty())
+    if (!sPlayerbotAIConfig.enabled || static_cast<uint64>(guid) == 0)
         return "bot system is disabled";
 
-    //bool isRandomBot = sRandomPlayerbotMgr.IsRandomBot(guid.GetCounter()); //not used, line marked for removal.
+    //bool isRandomBot = sRandomPlayerbotMgr.IsRandomBot(GUID_LOPART(static_cast<uint64>(guid))); //not used, line marked for removal.
     //bool isRandomAccount = sPlayerbotAIConfig.IsInRandomAccountList(botAccount); //not used, shadowed, line marked for removal.
     //bool isMasterAccount = (masterAccountId == botAccount); //not used, line marked for removal.
 
@@ -733,7 +734,7 @@ std::string const PlayerbotHolder::ProcessBotCommand(std::string const cmd, Obje
     if (!bot)
         return "bot not found";
 
-    bool addClassBot = sRandomPlayerbotMgr.IsAddclassBot(guid.GetCounter());
+    bool addClassBot = sRandomPlayerbotMgr.IsAddclassBot(GUID_LOPART(static_cast<uint64>(guid)));
 
     if (!addClassBot)
     {
@@ -859,7 +860,7 @@ std::string const PlayerbotHolder::ProcessBotCommand(std::string const cmd, Obje
 static uint8 GetOfflinePlayerGender(ObjectGuid guid)
 {
     QueryResult result = CharacterDatabase.Query(
-        "SELECT gender FROM characters WHERE guid = {}", guid.GetCounter());
+        "SELECT gender FROM characters WHERE guid = {}", GUID_LOPART(static_cast<uint64>(guid)));
 
     if (result)
         return (*result)[0].Get<uint8>();       // 0 = male, 1 = female
@@ -1327,7 +1328,7 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
         }
         else if (!master)
         {
-            out << ProcessBotCommand(cmdStr, member, ObjectGuid::Empty, true, -1, -1);
+            out << ProcessBotCommand(cmdStr, member, ObjectGuid(), true, -1, -1);
         }
 
         messages.push_back(out.str());
@@ -1340,14 +1341,14 @@ uint32 PlayerbotHolder::GetAccountId(std::string const name) { return AccountMgr
 
 uint32 PlayerbotHolder::GetAccountId(ObjectGuid guid)
 {
-    if (!guid.IsPlayer())
+    if (!IS_PLAYER_GUID(static_cast<uint64>(guid)))
         return 0;
 
     // prevent DB access for online player
     if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
         return player->GetSession()->GetAccountId();
 
-    ObjectGuid::LowType lowguid = guid.GetCounter();
+    uint32 lowguid = GUID_LOPART(static_cast<uint64>(guid));
 
     if (QueryResult result = CharacterDatabase.Query("SELECT account FROM characters WHERE guid = {}", lowguid))
     {
