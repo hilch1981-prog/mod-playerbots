@@ -1,0 +1,23 @@
+diff --git a/modules/mod_playerbots/src/Factory/AiFactory.cpp b/modules/mod_playerbots/src/Factory/AiFactory.cpp
+--- a/modules/mod_playerbots/src/Factory/AiFactory.cpp
++++ b/modules/mod_playerbots/src/Factory/AiFactory.cpp
+@@
+         case CLASS_DEATH_KNIGHT:
+             if (tab == Specializations::SPEC_DEATH_KNIGHT_BLOOD)
+                 nonCombatEngine->addStrategy("tank assist", false);
+             else
+                 nonCombatEngine->addStrategy("dps assist", false);
+             break;
++        case CLASS_MONK:
++            if (tab == Specializations::SPEC_MONK_BREWMASTER)
++                nonCombatEngine->addStrategy("tank assist", false);
++            else
++                nonCombatEngine->addStrategy("dps assist", false);
++
++            if (tab == Specializations::SPEC_MONK_MISTWEAVER)
++                nonCombatEngine->addStrategy("cure", false);
++            break;
+         default:
+             nonCombatEngine->addStrategy("dps assist", false);
+             break;
+     }
