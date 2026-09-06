@@ -71,6 +71,16 @@ jobs:
       - name: Verify staged donor G2 backend contract
         run: python3 tools/chipa/check_g2_donor_backend_contract.py
 
+      - name: Compile C++14 compatibility harness
+        run: |
+          g++ -std=c++14 -Wall -Wextra -Werror \
+            -Isrc/chipa \
+            tests/chipa/cxx14_compat_test.cpp \
+            -o /tmp/chipa-cxx14-compat-test
+
+      - name: Run C++14 compatibility harness
+        run: /tmp/chipa-cxx14-compat-test
+
       - name: Compile adapter contract harness
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror \
