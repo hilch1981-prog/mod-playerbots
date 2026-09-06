@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Pin the live Chipa MoP 5.4.8 SMSG_MOVE_KNOCK_BACK producer layout.
+"""Pin the live Chipa MoP 5.4.8 SMSG_MOVE_KNOCK_BACK producer and call site.
 
 This contract reads Unit::SendMoveKnockBack from the authoritative
-MOP_V2_Repack baseline and verifies the exact scalar/GUID wire order consumed
-by the staged PlayerBot compatibility reader. Passing it is static packet
-layout evidence only and must not promote G1 or G2.
+MOP_V2_Repack baseline, verifies the exact scalar/GUID wire order consumed by
+the compatibility reader, and pins PlayerbotAI to the target-native reader.
+Passing it is static packet-layout/call-site evidence only and must not promote
+G1 or G2.
 """
 
 from pathlib import Path
 import argparse
 import re
 import sys
+
+MODULE_ROOT = Path(__file__).resolve().parents[2]
 
 
 def extract_function(text: str, signature: str) -> str:
@@ -47,6 +50,12 @@ def require_order(segment: str, tokens: list[str]) -> None:
         if found < 0:
             raise AssertionError(f"SMSG_MOVE_KNOCK_BACK producer layout drift at token: {token}")
         pos = found + len(needle)
+
+
+def require_once(text: str, token: str, where: str) -> None:
+    count = text.count(token)
+    if count != 1:
+        raise AssertionError(f"{where}: expected exactly one `{token}`, found {count}")
 
 
 def main() -> int:
@@ -95,10 +104,25 @@ def main() -> int:
         ],
     )
 
+    playerbot_ai_path = MODULE_ROOT / "src/Bot/PlayerbotAI.cpp"
+    if not playerbot_ai_path.is_file():
+        raise AssertionError("missing module file: src/Bot/PlayerbotAI.cpp")
+    playerbot_ai = playerbot_ai_path.read_text(encoding="utf-8-sig")
+
+    require_once(
+        playerbot_ai,
+        "ReadMoveKnockBackForGuid(p, guid, bot->GetGUID(), counter, vcos, vsin,",
+        "PlayerbotAI.cpp SMSG_MOVE_KNOCK_BACK",
+    )
+    if "guid.ReadAsPacked()" in playerbot_ai:
+        raise AssertionError("PlayerbotAI.cpp: modern guid.ReadAsPacked() parser reintroduced")
+
     print("PASS: live MoP 5.4.8 SMSG_MOVE_KNOCK_BACK producer wire order is pinned")
     print("PASS: scalar order is speedXY -> vsin -> speedZ -> counter -> vcos before GUID mask/bytes")
     print("PASS: GUID mask order 2,0,7,1,4,6,5,3 and byte order 6,0,7,5,4,3,1,2")
-    print("NOTE: static packet-layout evidence only; no runtime gate is promoted")
+    print("PASS: PlayerbotAI knockback call site uses the target-native identity-gated reader")
+    print("PASS: PlayerbotAI no longer contains donor guid.ReadAsPacked() parsing")
+    print("NOTE: static packet-layout/call-site evidence only; no runtime gate is promoted")
     return 0
 
 
