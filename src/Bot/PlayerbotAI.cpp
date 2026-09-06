@@ -470,7 +470,7 @@ void PlayerbotAI::UpdateAIGroupMaster()
     }
 }
 
-void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal)
+void PlayerbotAI::UpdateAIInternal(uint32 /*elapsed*/, bool minimal)
 {
 
     if (!bot || !bot->GetSession())
@@ -1239,7 +1239,7 @@ void PlayerbotAI::HandleBotOutgoingPacket(WorldPacket const& packet)
                         return;
 
                     auto itemIds = GetChatHelper()->ExtractAllItemIds(message);
-                    if (message.starts_with(sPlayerbotAIConfig.toxicLinksPrefix) &&
+                    if (message.compare(0, sPlayerbotAIConfig.toxicLinksPrefix.size(), sPlayerbotAIConfig.toxicLinksPrefix) == 0 &&
                         (itemIds.size() > 0 || GetChatHelper()->ExtractAllQuestIds(message).size() > 0) &&
                         sPlayerbotAIConfig.toxicLinksRepliesChance)
                     {
@@ -2843,8 +2843,9 @@ bool PlayerbotAI::SayToChannel(const std::string& msg, const ChatChannelId& chan
     std::mutex socialMutex;
     std::lock_guard<std::mutex> lock(socialMutex);  // Blocking for thread safety when accessing SocialMgr
 
-    for (auto const& [key, channel] : cMgr->GetChannels())
+    for (auto const& channelEntry : cMgr->GetChannels())
     {
+        Channel* channel = channelEntry.second;
         // Checks if the channel pointer is valid
         if (!channel)
             continue;
@@ -3119,7 +3120,7 @@ bool PlayerbotAI::HasAura(std::string const name, Unit* unit, bool maxStack, boo
                 continue;
 
             // Check if the aura name matches
-            std::string_view const auraName = spellInfo->SpellName[0];
+            std::string const& auraName = spellInfo->SpellName[0];
             if (auraName.empty() || auraName.length() != wnamepart.length() || !Utf8FitTo(auraName, wnamepart))
                 continue;
 
@@ -5585,7 +5586,7 @@ Item* PlayerbotAI::FindStoneFor(Item* weapon) const
                    pProto->SubClass == ITEM_SUBCLASS_WEAPON_AXE || pProto->SubClass == ITEM_SUBCLASS_WEAPON_AXE2 ||
                    pProto->SubClass == ITEM_SUBCLASS_WEAPON_DAGGER || pProto->SubClass == ITEM_SUBCLASS_WEAPON_POLEARM))
     {
-        for (uint8 i = 0; i < std::size(uPrioritizedSharpStoneIds); ++i)
+        for (uint8 i = 0; i < uPrioritizedSharpStoneIds.size(); ++i)
         {
             stone = FindConsumable(uPrioritizedSharpStoneIds[i]);
             if (stone)
@@ -5598,7 +5599,7 @@ Item* PlayerbotAI::FindStoneFor(Item* weapon) const
              (pProto->SubClass == ITEM_SUBCLASS_WEAPON_MACE || pProto->SubClass == ITEM_SUBCLASS_WEAPON_MACE2 ||
               pProto->SubClass == ITEM_SUBCLASS_WEAPON_STAFF || pProto->SubClass == ITEM_SUBCLASS_WEAPON_FIST))
     {
-        for (uint8 i = 0; i < std::size(uPrioritizedWeightStoneIds); ++i)
+        for (uint8 i = 0; i < uPrioritizedWeightStoneIds.size(); ++i)
         {
             stone = FindConsumable(uPrioritizedWeightStoneIds[i]);
             if (stone)
@@ -5869,7 +5870,7 @@ std::vector<std::pair<const Quest*, uint32>> PlayerbotAI::GetCurrentQuestsRequir
 
         // QuestStatus status = bot->GetQuestStatus(questId);
         const Quest* quest = sObjectMgr->GetQuestTemplate(questId);
-        for (uint8 i = 0; i < std::size(quest->RequiredItemId); ++i)
+        for (uint8 i = 0; i < (sizeof(quest->RequiredItemId) / sizeof(quest->RequiredItemId[0])); ++i)
         {
             if (quest->RequiredItemId[i] == itemId)
             {
