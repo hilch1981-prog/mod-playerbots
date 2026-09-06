@@ -1,17 +1,31 @@
 #!/usr/bin/env python3
-"""Guard the first Chipa donor source-closure compile probe.
+"""Guard the Chipa donor scheduler source-closure compile probe.
 
-The probe must stay opt-in and compile-only. It is allowed to expose the
-reviewed scheduler unit to the real SkyFire compiler, but it must not activate
-the donor backend or silently pull PlayerbotMgr/PlayerbotAI production roots
-into the normal module manifest. Passing this contract is not G2 PASS.
+The probe must stay opt-in and compile-only. It may expose the reviewed base
+scheduler implementation plus its performance-monitor implementation to the
+real SkyFire compiler, but it must not activate the donor backend or silently
+pull PlayerbotMgr/PlayerbotAI production roots into the normal module manifest.
+Passing this contract is source-boundary evidence only and is not G2 PASS.
 """
 
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "chipa_module.cmake"
+
+PROBE_SOURCES = (
+    "src/Bot/Engine/PlayerbotAIBase.cpp",
+    "src/Bot/Debug/PerfMonitor.cpp",
+)
+
+FORBIDDEN_ROOTS = (
+    "src/Bot/PlayerbotAI.cpp",
+    "src/Bot/PlayerbotMgr.cpp",
+    "src/Script/Playerbots.cpp",
+    "src/chipa/DonorPlayerbotBackend.cpp",
+)
 
 
 def require(text: str, fragment: str, label: str) -> None:
@@ -20,16 +34,15 @@ def require(text: str, fragment: str, label: str) -> None:
 
 
 def strip_cmake_comments(text: str) -> str:
-    """Remove full-line CMake comments before activation-boundary checks.
-
-    Human-readable comments intentionally name forbidden production files such
-    as DonorPlayerbotBackend.cpp. Those names are evidence/documentation, not
-    CMake activation, so the guard must inspect executable manifest text only.
-    """
+    """Remove full-line CMake comments before activation-boundary checks."""
     return "\n".join(
         line for line in text.splitlines()
         if not line.lstrip().startswith("#")
     )
+
+
+def source_paths(block: str) -> list[str]:
+    return re.findall(r'\$\{CMAKE_CURRENT_LIST_DIR\}/([^"\n]+\.cpp)', block)
 
 
 def main() -> int:
@@ -39,36 +52,40 @@ def main() -> int:
     require(code, "option(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE", "opt-in probe option")
     require(code, '  OFF)', "default-OFF probe state")
     require(code, "if(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE)", "probe guard")
+    for source in PROBE_SOURCES:
+        require(code, f'"${{CMAKE_CURRENT_LIST_DIR}}/{source}"', f"reviewed probe source {source}")
     require(
         code,
-        '"${CMAKE_CURRENT_LIST_DIR}/src/Bot/Engine/PlayerbotAIBase.cpp"',
-        "reviewed scheduler probe source",
-    )
-    require(
-        code,
-        'message(STATUS "  + mod-playerbots donor compile probe: PlayerbotAIBase.cpp")',
+        'message(STATUS "  + mod-playerbots donor compile probe: PlayerbotAIBase.cpp + PerfMonitor.cpp")',
         "probe discovery evidence marker",
     )
 
-    guarded = code.split("if(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE)", 1)[1]
-    guarded = guarded.split("endif()", 1)[0]
-    if "DonorPlayerbotBackend.cpp" in guarded:
-        raise AssertionError("compile probe must not activate DonorPlayerbotBackend.cpp")
-    for forbidden in ("src/Bot/PlayerbotAI.cpp", "src/Bot/PlayerbotMgr.cpp", "src/Script/Playerbots.cpp"):
-        if forbidden in guarded:
-            raise AssertionError(f"first scheduler probe unexpectedly widened closure: {forbidden}")
+    normal_prefix, guarded_and_after = code.split("if(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE)", 1)
+    guarded = guarded_and_after.split("endif()", 1)[0]
 
-    normal_prefix = code.split("if(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE)", 1)[0]
-    if "src/Bot/Engine/PlayerbotAIBase.cpp" in normal_prefix:
-        raise AssertionError("PlayerbotAIBase.cpp escaped the opt-in probe guard")
-    if "DonorPlayerbotBackend.cpp" in normal_prefix:
-        raise AssertionError("donor backend is active in the normal manifest")
+    observed_probe_sources = tuple(source_paths(guarded))
+    if observed_probe_sources != PROBE_SOURCES:
+        raise AssertionError(
+            "scheduler probe source set/order drifted: "
+            f"expected={PROBE_SOURCES}, observed={observed_probe_sources}"
+        )
+
+    for forbidden in FORBIDDEN_ROOTS:
+        if forbidden in guarded:
+            raise AssertionError(f"scheduler compile probe unexpectedly widened closure: {forbidden}")
+
+    for source in PROBE_SOURCES:
+        if source in normal_prefix:
+            raise AssertionError(f"probe source escaped the opt-in guard: {source}")
+    for forbidden in FORBIDDEN_ROOTS:
+        if forbidden in normal_prefix:
+            raise AssertionError(f"forbidden donor production source is active in normal manifest: {forbidden}")
 
     print("PASS: donor compile probe is opt-in and default OFF")
-    print("PASS: first closure unit is exactly PlayerbotAIBase.cpp")
+    print("PASS: scheduler probe source set is exactly PlayerbotAIBase.cpp + PerfMonitor.cpp")
     print("PASS: PlayerbotAI/PlayerbotMgr/Playerbots roots and donor backend remain inactive")
     print("PASS: activation checks ignore documentation-only CMake comments")
-    print("NOTE: compile-probe contract only; no runtime gate is promoted")
+    print("NOTE: compile-probe boundary evidence only; no runtime gate is promoted")
     return 0
 
 
