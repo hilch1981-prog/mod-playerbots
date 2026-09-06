@@ -1,0 +1,84 @@
+name: Chipa one-shot integrate MoP packet readers
+
+on:
+  push:
+    branches:
+      - mop-5.4.8-v2
+    paths:
+      - .github/workflows/chipa-one-shot-integrate-mop-packet-readers.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-readers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout active branch
+        uses: actions/checkout@v4
+        with:
+          ref: mop-5.4.8-v2
+          fetch-depth: 0
+
+      - name: Apply exact target-native packet reader replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/Bot/PlayerbotAI.cpp')
+          text = path.read_text(encoding='utf-8')
+
+          include_anchor = '#include "MapMgr.h"\n'
+          include_replacement = (
+              '#include "MapMgr.h"\n'
+              '#include "Mop548SpellPacketCompat.h"\n'
+              '#include "Mop548UnitPacketCompat.h"\n'
+          )
+          if text.count(include_anchor) != 1:
+              raise SystemExit(f'expected one MapMgr include anchor, found {text.count(include_anchor)}')
+          if 'Mop548SpellPacketCompat.h' in text or 'Mop548UnitPacketCompat.h' in text:
+              raise SystemExit('target-native compatibility includes already present')
+          text = text.replace(include_anchor, include_replacement, 1)
+
+          replacements = [
+              (
+                  '''            ObjectGuid casterGuid;\n            p >> casterGuid.ReadAsPacked();\n            if (casterGuid != bot->GetGUID())\n                return;\n            uint8 count, result;\n            uint32 spellId;\n            p >> count >> spellId >> result;\n''',
+                  '''            ObjectGuid casterGuid;\n            uint8 count, result;\n            uint32 spellId;\n            if (!chipa::mop548::ReadSpellFailureForCaster(p, casterGuid, bot->GetGUID(), result, spellId, count))\n                return;\n'''
+              ),
+              (
+                  '''            ObjectGuid casterGuid;\n            p >> casterGuid.ReadAsPacked();\n            if (casterGuid != bot->GetGUID())\n                return;\n\n            uint32 delaytime;\n            p >> delaytime;\n''',
+                  '''            ObjectGuid casterGuid;\n            uint32 delaytime;\n            if (!chipa::mop548::ReadSpellDelayedForCaster(p, casterGuid, bot->GetGUID(), delaytime))\n                return;\n'''
+              ),
+              (
+                  '''            ObjectGuid guid;\n            p >> guid.ReadAsPacked();\n            if (guid != bot->GetGUID())\n                return;\n            CheckMountStateAction::CompleteDismount(bot);\n''',
+                  '''            ObjectGuid guid;\n            if (!chipa::mop548::ReadDismountForGuid(p, guid, bot->GetGUID()))\n                return;\n            CheckMountStateAction::CompleteDismount(bot);\n'''
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one packet-reader source block, found {count}: {old.splitlines()[0]!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          grep -F '#include "Mop548SpellPacketCompat.h"' src/Bot/PlayerbotAI.cpp
+          grep -F 'ReadSpellFailureForCaster(p, casterGuid, bot->GetGUID(), result, spellId, count)' src/Bot/PlayerbotAI.cpp
+          grep -F 'ReadSpellDelayedForCaster(p, casterGuid, bot->GetGUID(), delaytime)' src/Bot/PlayerbotAI.cpp
+          grep -F 'ReadDismountForGuid(p, guid, bot->GetGUID())' src/Bot/PlayerbotAI.cpp
+
+      - name: Commit integration and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/chipa-one-shot-integrate-mop-packet-readers.yml
+          git add src/Bot/PlayerbotAI.cpp
+          git diff --cached --check
+          git commit -m 'compat(chipa): use target-native packet readers in PlayerbotAI'
+          git push origin HEAD:mop-5.4.8-v2
