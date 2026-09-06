@@ -1,0 +1,108 @@
+name: Chipa Donor Compile Probe
+
+on:
+  push:
+    branches:
+      - mop-5.4.8-v2
+    paths:
+      - chipa_module.cmake
+      - src/Bot/Engine/PlayerbotAIBase.cpp
+      - src/Bot/Engine/PlayerbotAIBase.h
+      - src/Bot/PlayerbotAIConfig.h
+      - src/Bot/Debug/PerfMonitor.h
+      - tools/chipa/check_donor_compile_probe_contract.py
+      - .github/workflows/chipa_donor_compile_probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scheduler-source-compile:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout module under test
+        uses: actions/checkout@v4
+        with:
+          path: module-under-test
+
+      - name: Checkout Chipa runtime integration branch
+        uses: actions/checkout@v4
+        with:
+          repository: hilch1981-prog/MOP_V2_Repack
+          ref: playerbot-v2-poc
+          path: runtime
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Install configure dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            default-libmysqlclient-dev \
+            libssl-dev \
+            libboost-all-dev \
+            libreadline-dev \
+            zlib1g-dev \
+            libbz2-dev \
+            libjemalloc-dev \
+            rsync
+
+      - name: Mount exact module HEAD into runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf runtime/modules/mod-playerbots
+          mkdir -p runtime/modules/mod-playerbots
+          rsync -a --exclude '.git' module-under-test/ runtime/modules/mod-playerbots/
+          git -C module-under-test rev-parse HEAD | tee module-head.txt
+          git -C runtime rev-parse HEAD | tee runtime-head.txt
+
+      - name: Verify compile-probe boundary
+        working-directory: module-under-test
+        run: python3 tools/chipa/check_donor_compile_probe_contract.py
+
+      - name: Configure real Chipa compiler surface
+        working-directory: runtime
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake -S . -B build-donor-probe -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSERVERS=1 \
+            -DSCRIPTS=1 \
+            -DTOOLS=0 \
+            -DMODULES=1 \
+            -DCHIPA_PLAYERBOT_DONOR_COMPILE_PROBE=ON \
+            2>&1 | tee ../configure-donor-probe.log
+          grep -F 'module: mod-playerbots' ../configure-donor-probe.log
+          grep -F 'donor compile probe: PlayerbotAIBase.cpp' ../configure-donor-probe.log
+
+      - name: Locate and compile only PlayerbotAIBase object
+        working-directory: runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mapfile -t probe_targets < <(ninja -C build-donor-probe -t targets all | awk -F: '/PlayerbotAIBase\.cpp\.o:/ {print $1}')
+          test "${#probe_targets[@]}" -eq 1
+          printf '%s\n' "${probe_targets[0]}" | tee ../probe-target.txt
+          set -o pipefail
+          ninja -C build-donor-probe "${probe_targets[0]}" 2>&1 | tee ../build-donor-probe.log
+
+      - name: Upload donor compile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chipa-donor-scheduler-compile-evidence
+          if-no-files-found: warn
+          path: |
+            module-head.txt
+            runtime-head.txt
+            configure-donor-probe.log
+            probe-target.txt
+            build-donor-probe.log
