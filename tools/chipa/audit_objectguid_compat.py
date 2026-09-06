@@ -83,6 +83,7 @@ def main() -> int:
     object_h = read(runtime_root, "src/server/game/Entities/Object/Object.h")
     manifest = read(MODULE_ROOT, "chipa_module.cmake")
     bootstrap = read(MODULE_ROOT, "src/chipa/ModuleBootstrap.cpp")
+    playerbot_ai = read(MODULE_ROOT, "src/Bot/PlayerbotAI.cpp")
 
     # Establish the actual target model: gameplay objects expose uint64 GUIDs,
     # while packet code has a small byte-addressable ObjectGuid wrapper and
@@ -99,6 +100,18 @@ def main() -> int:
         require(bytebuffer_h, token, "SkyFire ByteBuffer.h ObjectGuid surface")
     require(object_h, "uint64 GetGUID() const", "SkyFire Object.h GUID surface")
     require(object_h, "uint32 GetGUIDLow() const", "SkyFire Object.h GUID surface")
+    require(object_h, "uint32 GetGUIDHigh() const", "SkyFire Object.h GUID surface")
+
+    # PlayerbotAI gameplay-object accesses were deliberately translated from
+    # modern chained ObjectGuid helpers to SkyFire's native Object accessors.
+    # Pin that progress here so a donor refresh cannot silently reintroduce
+    # GetGUID().GetCounter()/GetHigh() in this integration-critical root.
+    for method in ("GetCounter", "GetHigh"):
+        pattern = rf"GetGUID\s*\(\s*\)\s*\.\s*{method}\s*\("
+        if re.search(pattern, playerbot_ai):
+            raise AssertionError(
+                f"PlayerbotAI.cpp: modern chained GetGUID().{method}() accessor reintroduced"
+            )
 
     findings: list[tuple[str, str, int]] = []
     for relative in DONOR_ROOTS:
@@ -112,6 +125,7 @@ def main() -> int:
             raise AssertionError("ObjectGuid blockers remain but donor backend is active in ModuleBootstrap.cpp")
 
     print("PASS: target ObjectGuid model verified from live SkyFire runtime sources")
+    print("PASS: PlayerbotAI gameplay-object GUID chains use SkyFire GetGUIDLow/GetGUIDHigh accessors")
     if findings:
         print("PENDING: modern donor ObjectGuid helpers still require target-native adaptation:")
         for relative, marker, count in findings:
