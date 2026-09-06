@@ -68,8 +68,8 @@ jobs:
       - name: Inventory C++14 root-closure blockers
         run: python3 tools/chipa/audit_cpp14_root_closure.py .chipa-runtime
 
-      - name: Verify PlayerbotMgr C++14 source adapter
-        run: python3 tools/chipa/adapt_cpp14_playerbotmgr.py
+      - name: Require applied PlayerbotMgr C++14 source state
+        run: python3 tools/chipa/adapt_cpp14_playerbotmgr.py --require-adapted
 
       - name: Verify PlayerbotMgr C++14 adaptation plan/state
         run: python3 tools/chipa/check_cpp14_playerbotmgr_plan.py
