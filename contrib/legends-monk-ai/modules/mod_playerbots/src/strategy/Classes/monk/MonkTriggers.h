@@ -7,6 +7,7 @@
 
 #include "CureTriggers.h"
 #include "GenericTriggers.h"
+#include "Playerbots.h"
 #include "PlayerbotAI.h"
 #include "SharedDefines.h"
 
