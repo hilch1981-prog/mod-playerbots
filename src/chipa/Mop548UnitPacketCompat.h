@@ -27,6 +27,32 @@ bool ReadDismountForGuid(Packet& packet, Guid& guid, ExpectedGuid expectedGuid)
     return static_cast<ExpectedGuid>(guid) == expectedGuid;
 }
 
+// MoP 5.4.8 SMSG_MOVE_KNOCK_BACK is not a leading packed GUID. Unit.cpp
+// writes the movement scalars first, then a MoP bit/byte GUID sequence:
+//   speedXY -> vsin -> speedZ -> counter -> vcos -> GUID mask -> GUID bytes.
+// Keep the wire order isolated here so PlayerbotAI does not retain the donor's
+// modern ReadAsPacked() assumption.
+template <class Packet, class Guid, class Counter>
+void ReadMoveKnockBack(Packet& packet, Guid& guid, Counter& counter, float& vcos, float& vsin,
+                       float& horizontalSpeed, float& verticalSpeed)
+{
+    packet >> horizontalSpeed;
+    packet >> vsin;
+    packet >> verticalSpeed;
+    packet >> counter;
+    packet >> vcos;
+    packet.ReadGuidMask(guid, 2, 0, 7, 1, 4, 6, 5, 3);
+    packet.ReadGuidBytes(guid, 6, 0, 7, 5, 4, 3, 1, 2);
+}
+
+template <class Packet, class Guid, class ExpectedGuid, class Counter>
+bool ReadMoveKnockBackForGuid(Packet& packet, Guid& guid, ExpectedGuid expectedGuid, Counter& counter,
+                              float& vcos, float& vsin, float& horizontalSpeed, float& verticalSpeed)
+{
+    ReadMoveKnockBack(packet, guid, counter, vcos, vsin, horizontalSpeed, verticalSpeed);
+    return static_cast<ExpectedGuid>(guid) == expectedGuid;
+}
+
 // MoP 5.4.8 SMSG_EMOTE is not packed-GUID encoded in this runtime. Unit.cpp
 // writes uint32 emote id followed by the raw uint64 object GUID. Keep parsing
 // isolated here so the donor's modern ObjectGuid::IsPlayer() assumption can be
