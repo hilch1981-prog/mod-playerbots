@@ -1,0 +1,19 @@
+diff --git a/modules/mod_playerbots/src/Factory/AiFactory.cpp b/modules/mod_playerbots/src/Factory/AiFactory.cpp
+--- a/modules/mod_playerbots/src/Factory/AiFactory.cpp
++++ b/modules/mod_playerbots/src/Factory/AiFactory.cpp
+@@
+ #include "MageAiObjectContext.h"
++#include "MonkAiObjectContext.h"
+ #include "WarriorAIObjectContext.h"
+ #include "WarlockAiObjectContext.h"
+@@
+         case CLASS_DEATH_KNIGHT:
+             return new DKAiObjectContext(botAI);
+-        //case CLASS_MONK:
+-            //return new MonkAiObjectContext(botAI);
++        case CLASS_MONK:
++            return new MonkAiObjectContext(botAI);
+     }
+
+     return new BotAiObjectContext(botAI);
+ }

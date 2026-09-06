@@ -1,0 +1,56 @@
+# Legends MoP 5.4.8 Monk AI overlay
+
+This directory is a staging overlay for
+`Legends-of-Azeroth/Legends-of-Azeroth-Pandaria-5.4.8`.
+
+It lives outside the active Chipa `mop-5.4.8-v2` source tree because that
+branch uses a newer `mod-playerbots` layout. Copy these files into a true
+fork of the Legends repository before build/PR validation.
+
+## Target paths
+
+Copy `modules/mod_playerbots/src/strategy/Classes/monk/*` to the same path in
+the Legends fork and apply `patches/AiFactory.cpp.patch` at repository root.
+
+The upstream build already contains Monk specialization and role detection in
+`modules/mod_playerbots/src/AI/PlayerbotSpec.cpp` and `Factory/AiFactory.cpp`.
+This overlay adds only the missing Monk Strategy/Trigger/Action context.
+
+## 5.4.8 / build 18414 spell validation
+
+The rotation is written by spell name to match the existing Legends engine.
+The following reference IDs are used only to validate the intended MoP spell
+or aura and are not copied donor implementation code:
+
+- Stance of the Sturdy Ox: 115069
+- Stance of the Wise Serpent: 115070
+- Stance of the Fierce Tiger: 103985
+- Keg Smash: 121253
+- Blackout Kick: 100784
+- Tiger Palm: 100787
+- Tiger Power aura: 125359
+- Jab: 100780
+- Purifying Brew: 119582
+- Shuffle aura: 115307
+- Rising Sun Kick: 107428
+- Fists of Fury: 113656
+- Expel Harm: 115072
+- Fortifying Brew: 115203
+- Spinning Crane Kick: 101546
+- Soothing Mist: 115175
+- Surging Mist: 116694
+- Enveloping Mist: 124682
+- Renewing Mist: 115151
+- Uplift: 116670
+- Life Cocoon: 116849
+- Revival: 115310
+- Thunder Focus Tea: 116680
+- Moderate Stagger aura: 124274
+- Heavy Stagger aura: 124273
+
+## Remaining validation
+
+- Compile with PLAYERBOTS=1 after moving the overlay into a real Legends fork.
+- In-game test all three specs: party follow, tank threat/stagger handling,
+  healing target selection, Windwalker rotation, interrupts and Detox.
+- Keep feature and bug-fix commits separate.
