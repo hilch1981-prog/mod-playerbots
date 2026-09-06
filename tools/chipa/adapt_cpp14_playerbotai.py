@@ -65,9 +65,16 @@ TARGETED_MARKERS = (
 def classify_state(text: str) -> str:
     old_counts = [text.count(old) for _, old, _ in PAIRS]
     new_counts = [text.count(new) for _, _, new in PAIRS]
-    if old_counts == [1] * len(PAIRS) and new_counts == [0] * len(PAIRS):
+
+    # Some replacement text (notably std::string const& auraName) already
+    # exists in a different, unrelated code path. Source state therefore must
+    # be classified by whether all reviewed old fragments are present or all
+    # are absent, while merely requiring each replacement to exist in the
+    # adapted state. Exact replacement multiplicity is verified by behavior
+    # checks below rather than assuming a globally unique spelling.
+    if old_counts == [1] * len(PAIRS):
         return "donor"
-    if old_counts == [0] * len(PAIRS) and new_counts == [1] * len(PAIRS):
+    if old_counts == [0] * len(PAIRS) and all(count >= 1 for count in new_counts):
         return "adapted"
 
     details = ", ".join(
