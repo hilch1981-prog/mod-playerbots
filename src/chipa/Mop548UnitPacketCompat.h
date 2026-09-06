@@ -16,6 +16,18 @@ void ReadDismount(Packet& packet, Guid& guid)
     packet.ReadGuidBytes(guid, 3, 6, 7, 5, 1, 4, 2, 0);
 }
 
+// Integration-facing form for PlayerbotAI::HandleBotOutgoingPacket. The full
+// target packet is consumed before comparison so call sites can preserve the
+// existing "ignore another unit's dismount" behavior without reintroducing
+// donor ReadAsPacked() parsing.
+template <class Packet, class Guid>
+bool ReadDismountForGuid(Packet& packet, Guid const& expectedGuid)
+{
+    Guid guid;
+    ReadDismount(packet, guid);
+    return guid == expectedGuid;
+}
+
 // MoP 5.4.8 SMSG_EMOTE is not packed-GUID encoded in this runtime. Unit.cpp
 // writes uint32 emote id followed by the raw uint64 object GUID. Keep parsing
 // isolated here so the donor's modern ObjectGuid::IsPlayer() assumption can be
