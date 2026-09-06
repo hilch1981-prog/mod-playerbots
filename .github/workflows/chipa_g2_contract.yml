@@ -18,6 +18,7 @@ on:
       - tools/chipa/check_skyfire_runtime_contract.py
       - tools/chipa/check_mop548_spell_packet_contract.py
       - tools/chipa/check_mop548_unit_packet_contract.py
+      - tools/chipa/check_mop548_chat_packet_contract.py
       - tools/chipa/audit_objectguid_compat.py
       - .github/workflows/chipa_g2_contract.yml
   workflow_dispatch:
@@ -49,6 +50,9 @@ jobs:
 
       - name: Verify live MoP unit packet layouts
         run: python3 tools/chipa/check_mop548_unit_packet_contract.py .chipa-runtime
+
+      - name: Verify live MoP chat packet layouts
+        run: python3 tools/chipa/check_mop548_chat_packet_contract.py .chipa-runtime
 
       - name: Inventory ObjectGuid compatibility blockers
         run: python3 tools/chipa/audit_objectguid_compat.py .chipa-runtime
@@ -91,3 +95,13 @@ jobs:
 
       - name: Run MoP unit packet compatibility harness
         run: /tmp/chipa-mop548-unit-packet-test
+
+      - name: Compile MoP chat packet compatibility harness
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror \
+            -Isrc/chipa \
+            tests/chipa/mop548_chat_packet_compat_test.cpp \
+            -o /tmp/chipa-mop548-chat-packet-test
+
+      - name: Run MoP chat packet compatibility harness
+        run: /tmp/chipa-mop548-chat-packet-test
