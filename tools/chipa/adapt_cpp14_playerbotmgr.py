@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Apply the reviewed C++14 adaptation slice to PlayerbotMgr.cpp.
+"""Apply or verify the reviewed C++14 adaptation slice for PlayerbotMgr.cpp.
 
 The transform is intentionally narrow and all-or-nothing. It only rewrites the
 four fragments already pinned by check_cpp14_playerbotmgr_plan.py. A partial or
-drifted source state fails rather than guessing. Passing this tool is source
-adaptation evidence only; it does not promote G1 or G2.
+drifted source state fails rather than guessing. Once the source rewrite lands,
+CI uses --require-adapted so reintroducing the donor state becomes a regression.
+Passing this tool is source adaptation evidence only; it does not promote G1 or
+G2.
 """
 
 from pathlib import Path
@@ -117,12 +119,21 @@ def adapt_text(text: str) -> tuple[str, bool]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true", help="write the reviewed transform to src/Bot/PlayerbotMgr.cpp")
+    parser.add_argument(
+        "--require-adapted",
+        action="store_true",
+        help="fail unless src/Bot/PlayerbotMgr.cpp already contains the fully adapted slice",
+    )
     args = parser.parse_args()
 
     if not TARGET.is_file():
         raise AssertionError(f"missing donor source: {TARGET.relative_to(MODULE_ROOT)}")
 
     original = TARGET.read_text(encoding="utf-8")
+    state = classify_state(original)
+    if args.require_adapted and state != "adapted":
+        raise AssertionError("PlayerbotMgr reviewed C++14 source rewrite is required but donor state is present")
+
     adapted, changed = adapt_text(original)
 
     if args.write and changed:
@@ -134,6 +145,8 @@ def main() -> int:
     else:
         print("PASS: PlayerbotMgr reviewed C++14 adaptation is already applied")
 
+    if args.require_adapted:
+        print("PASS: CI requires and observes the fully adapted PlayerbotMgr source state")
     print("PASS: targeted post-C++14 markers are absent from the adapted result")
     print("PASS: loading-count, init= prefix gate, and instant-logout semantics remain represented")
     print("NOTE: source adaptation evidence only; no runtime gate is promoted")
