@@ -16,16 +16,15 @@ void ReadDismount(Packet& packet, Guid& guid)
     packet.ReadGuidBytes(guid, 3, 6, 7, 5, 1, 4, 2, 0);
 }
 
-// Integration-facing form for PlayerbotAI::HandleBotOutgoingPacket. The full
-// target packet is consumed before comparison so call sites can preserve the
-// existing "ignore another unit's dismount" behavior without reintroducing
-// donor ReadAsPacked() parsing.
-template <class Packet, class Guid>
-bool ReadDismountForGuid(Packet& packet, Guid const& expectedGuid)
+// Integration-facing form for PlayerbotAI::HandleBotOutgoingPacket. SkyFire
+// packet GUIDs use ByteBuffer::ObjectGuid but gameplay objects expose raw
+// uint64 GUIDs. Decode into the caller-provided packet Guid and compare via the
+// target conversion rather than requiring an ObjectGuid equality operator.
+template <class Packet, class Guid, class ExpectedGuid>
+bool ReadDismountForGuid(Packet& packet, Guid& guid, ExpectedGuid expectedGuid)
 {
-    Guid guid;
     ReadDismount(packet, guid);
-    return guid == expectedGuid;
+    return static_cast<ExpectedGuid>(guid) == expectedGuid;
 }
 
 // MoP 5.4.8 SMSG_EMOTE is not packed-GUID encoded in this runtime. Unit.cpp
