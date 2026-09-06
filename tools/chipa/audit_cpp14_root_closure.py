@@ -37,6 +37,7 @@ POST_CPP14_PATTERNS = (
     ("std::variant", re.compile(r"\bstd::variant\b")),
     ("std::any", re.compile(r"\bstd::any\b")),
     ("std::string_view", re.compile(r"\bstd::string_view\b")),
+    ("std::size", re.compile(r"\bstd::size\s*\(")),
     ("std::filesystem", re.compile(r"\bstd::filesystem\b")),
     ("std::span", re.compile(r"\bstd::span\b")),
     ("std::ranges", re.compile(r"\bstd::ranges\b")),
@@ -45,12 +46,15 @@ POST_CPP14_PATTERNS = (
 
 # Baseline captured before C++14 adaptation starts. This is intentionally a
 # ceiling, not an expected exact count: every reduction is allowed, while any
-# increase or newly introduced marker fails the contract.
+# increase or newly introduced marker fails the contract. The std::size entries
+# were added after a targeted root-closure review found three pre-existing
+# C++17 calls in PlayerbotAI.cpp that the first inventory did not detect.
 BLOCKER_CEILING = {
     ("src/Bot/PlayerbotAI.cpp", "std::string starts_with()/ends_with()"): 1,
     ("src/Bot/PlayerbotAI.cpp", "structured binding"): 1,
     ("src/Bot/PlayerbotAI.cpp", "C++17 maybe_unused attribute"): 1,
     ("src/Bot/PlayerbotAI.cpp", "std::string_view"): 1,
+    ("src/Bot/PlayerbotAI.cpp", "std::size"): 3,
     ("src/Bot/PlayerbotMgr.cpp", "unordered/container contains()"): 1,
     ("src/Bot/PlayerbotMgr.cpp", "std::string starts_with()/ends_with()"): 1,
     ("src/Bot/PlayerbotMgr.cpp", "structured binding"): 1,
