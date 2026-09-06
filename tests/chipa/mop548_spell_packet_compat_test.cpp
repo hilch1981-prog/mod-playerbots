@@ -11,19 +11,29 @@ struct MockGuid
     std::uint8_t bytes[8] = {};
     std::uint8_t& operator[](std::size_t i) { return bytes[i]; }
     std::uint8_t const& operator[](std::size_t i) const { return bytes[i]; }
-};
 
-static bool operator==(MockGuid const& left, MockGuid const& right)
-{
-    for (std::size_t i = 0; i < 8; ++i)
-        if (left[i] != right[i])
-            return false;
-    return true;
-}
+    // Match Chipa ByteBuffer::ObjectGuid semantics: packet GUIDs convert to a
+    // raw gameplay GUID, but do not provide ObjectGuid equality operators.
+    operator std::uint64_t()
+    {
+        std::uint64_t value = 0;
+        for (std::size_t i = 0; i < 8; ++i)
+            value |= static_cast<std::uint64_t>(bytes[i]) << (i * 8);
+        return value;
+    }
+};
 
 static void AssertOrder(std::initializer_list<int> actual, std::initializer_list<int> expected)
 {
     assert(std::vector<int>(actual) == std::vector<int>(expected));
+}
+
+static std::uint64_t RawGuid(std::uint8_t base)
+{
+    std::uint64_t value = 0;
+    for (std::size_t i = 0; i < 8; ++i)
+        value |= static_cast<std::uint64_t>(base + i) << (i * 8);
+    return value;
 }
 
 struct FailurePacket
@@ -115,22 +125,6 @@ struct DelayedPacket
     }
 };
 
-static MockGuid FailureGuid()
-{
-    MockGuid guid;
-    for (int i = 0; i < 8; ++i)
-        guid[i] = static_cast<std::uint8_t>(0x10 + i);
-    return guid;
-}
-
-static MockGuid DelayedGuid()
-{
-    MockGuid guid;
-    for (int i = 0; i < 8; ++i)
-        guid[i] = static_cast<std::uint8_t>(0x20 + i);
-    return guid;
-}
-
 int main()
 {
     MockGuid failureGuid;
@@ -141,20 +135,22 @@ int main()
     chipa::mop548::ReadSpellFailure(failure, failureGuid, result, spellId, castCount);
     assert(failure.maskCalls == 1 && failure.byteCalls == 2 && failure.scalarStage == 3);
     assert(result == 0x33 && spellId == 0xAABBCCDDu && castCount == 0x44);
-    assert(failureGuid == FailureGuid());
+    assert(static_cast<std::uint64_t>(failureGuid) == RawGuid(0x10));
 
     FailurePacket matchingFailure;
+    MockGuid matchingFailureGuid;
     result = 0;
     spellId = 0;
     castCount = 0;
-    assert(chipa::mop548::ReadSpellFailureForCaster(matchingFailure, FailureGuid(), result, spellId, castCount));
+    assert(chipa::mop548::ReadSpellFailureForCaster(matchingFailure, matchingFailureGuid, RawGuid(0x10), result,
+                                                     spellId, castCount));
     assert(matchingFailure.maskCalls == 1 && matchingFailure.byteCalls == 2 && matchingFailure.scalarStage == 3);
     assert(result == 0x33 && spellId == 0xAABBCCDDu && castCount == 0x44);
 
     FailurePacket foreignFailure;
-    MockGuid foreignGuid;
-    foreignGuid[0] = 1;
-    assert(!chipa::mop548::ReadSpellFailureForCaster(foreignFailure, foreignGuid, result, spellId, castCount));
+    MockGuid foreignFailureGuid;
+    assert(!chipa::mop548::ReadSpellFailureForCaster(foreignFailure, foreignFailureGuid, RawGuid(0x10) + 1, result,
+                                                      spellId, castCount));
     assert(foreignFailure.maskCalls == 1 && foreignFailure.byteCalls == 2 && foreignFailure.scalarStage == 3);
 
     MockGuid delayedGuid;
@@ -163,17 +159,19 @@ int main()
     chipa::mop548::ReadSpellDelayed(delayed, delayedGuid, delay);
     assert(delayed.maskCalls == 1 && delayed.byteCalls == 2 && delayed.scalarStage == 1);
     assert(delay == 777u);
-    assert(delayedGuid == DelayedGuid());
+    assert(static_cast<std::uint64_t>(delayedGuid) == RawGuid(0x20));
 
     DelayedPacket matchingDelayed;
+    MockGuid matchingDelayedGuid;
     delay = 0;
-    assert(chipa::mop548::ReadSpellDelayedForCaster(matchingDelayed, DelayedGuid(), delay));
+    assert(chipa::mop548::ReadSpellDelayedForCaster(matchingDelayed, matchingDelayedGuid, RawGuid(0x20), delay));
     assert(matchingDelayed.maskCalls == 1 && matchingDelayed.byteCalls == 2 && matchingDelayed.scalarStage == 1);
     assert(delay == 777u);
 
     DelayedPacket foreignDelayed;
+    MockGuid foreignDelayedGuid;
     delay = 0;
-    assert(!chipa::mop548::ReadSpellDelayedForCaster(foreignDelayed, foreignGuid, delay));
+    assert(!chipa::mop548::ReadSpellDelayedForCaster(foreignDelayed, foreignDelayedGuid, RawGuid(0x20) + 1, delay));
     assert(foreignDelayed.maskCalls == 1 && foreignDelayed.byteCalls == 2 && foreignDelayed.scalarStage == 1);
     assert(delay == 777u);
 }
