@@ -1,0 +1,80 @@
+name: Chipa one-shot adapt object GUID accessors
+
+on:
+  push:
+    branches:
+      - mop-5.4.8-v2
+    paths:
+      - .github/workflows/chipa-one-shot-adapt-object-guid-accessors.yml
+
+permissions:
+  contents: write
+
+jobs:
+  adapt-guid-accessors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout active branch
+        uses: actions/checkout@v4
+        with:
+          ref: mop-5.4.8-v2
+          fetch-depth: 0
+
+      - name: Replace modern chained ObjectGuid accessors
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/Bot/PlayerbotAI.cpp')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = {
+              'targets.GetUnitTarget()->GetGUID().GetCounter()': 'targets.GetUnitTarget()->GetGUIDLow()',
+              'targets.GetUnitTarget()->GetGUID().GetHigh()': 'targets.GetUnitTarget()->GetGUIDHigh()',
+              'targets.GetGOTarget()->GetGUID().GetCounter()': 'targets.GetGOTarget()->GetGUIDLow()',
+              'targets.GetGOTarget()->GetGUID().GetHigh()': 'targets.GetGOTarget()->GetGUIDHigh()',
+              'targets.GetItemTarget()->GetGUID().GetCounter()': 'targets.GetItemTarget()->GetGUIDLow()',
+              'targets.GetItemTarget()->GetGUID().GetHigh()': 'targets.GetItemTarget()->GetGUIDHigh()',
+              'tradeItem->GetGUID().GetCounter()': 'tradeItem->GetGUIDLow()',
+              'tradeItem->GetGUID().GetHigh()': 'tradeItem->GetGUIDHigh()',
+          }
+
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one `{old}`, found {count}')
+              text = text.replace(old, new, 1)
+
+          bot_old = 'bot->GetGUID().GetCounter()'
+          bot_count = text.count(bot_old)
+          if bot_count != 2:
+              raise SystemExit(f'expected exactly two `{bot_old}`, found {bot_count}')
+          text = text.replace(bot_old, 'bot->GetGUIDLow()')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          if grep -F 'GetGUID().GetCounter()' src/Bot/PlayerbotAI.cpp; then
+            echo 'modern chained GetGUID().GetCounter() remains in PlayerbotAI.cpp' >&2
+            exit 1
+          fi
+          if grep -F 'GetGUID().GetHigh()' src/Bot/PlayerbotAI.cpp; then
+            echo 'modern chained GetGUID().GetHigh() remains in PlayerbotAI.cpp' >&2
+            exit 1
+          fi
+          grep -F 'bot->GetGUIDLow()' src/Bot/PlayerbotAI.cpp
+          grep -F 'targets.GetUnitTarget()->GetGUIDHigh()' src/Bot/PlayerbotAI.cpp
+
+      - name: Commit adaptation and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/chipa-one-shot-adapt-object-guid-accessors.yml
+          git add src/Bot/PlayerbotAI.cpp
+          git diff --cached --check
+          git commit -m 'compat(chipa): use SkyFire object GUID accessors'
+          git push origin HEAD:mop-5.4.8-v2
