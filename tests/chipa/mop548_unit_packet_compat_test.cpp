@@ -11,19 +11,27 @@ struct MockGuid
     std::uint8_t bytes[8] = {};
     std::uint8_t& operator[](std::size_t i) { return bytes[i]; }
     std::uint8_t const& operator[](std::size_t i) const { return bytes[i]; }
-};
 
-static bool operator==(MockGuid const& left, MockGuid const& right)
-{
-    for (std::size_t i = 0; i < 8; ++i)
-        if (left[i] != right[i])
-            return false;
-    return true;
-}
+    operator std::uint64_t()
+    {
+        std::uint64_t value = 0;
+        for (std::size_t i = 0; i < 8; ++i)
+            value |= static_cast<std::uint64_t>(bytes[i]) << (i * 8);
+        return value;
+    }
+};
 
 static void AssertOrder(std::initializer_list<int> actual, std::initializer_list<int> expected)
 {
     assert(std::vector<int>(actual) == std::vector<int>(expected));
+}
+
+static std::uint64_t DismountRawGuid()
+{
+    std::uint64_t value = 0;
+    for (std::size_t i = 0; i < 8; ++i)
+        value |= static_cast<std::uint64_t>(0x30 + i) << (i * 8);
+    return value;
 }
 
 struct DismountPacket
@@ -69,14 +77,6 @@ struct EmotePacket
     }
 };
 
-static MockGuid DismountGuid()
-{
-    MockGuid guid;
-    for (int i = 0; i < 8; ++i)
-        guid[i] = static_cast<std::uint8_t>(0x30 + i);
-    return guid;
-}
-
 int main()
 {
     MockGuid guid;
@@ -85,16 +85,16 @@ int main()
 
     assert(dismountPacket.maskCalls == 1);
     assert(dismountPacket.byteCalls == 1);
-    assert(guid == DismountGuid());
+    assert(static_cast<std::uint64_t>(guid) == DismountRawGuid());
 
     DismountPacket matchingDismount;
-    assert(chipa::mop548::ReadDismountForGuid(matchingDismount, DismountGuid()));
+    MockGuid matchingGuid;
+    assert(chipa::mop548::ReadDismountForGuid(matchingDismount, matchingGuid, DismountRawGuid()));
     assert(matchingDismount.maskCalls == 1 && matchingDismount.byteCalls == 1);
 
-    MockGuid foreignGuid;
-    foreignGuid[0] = 1;
     DismountPacket foreignDismount;
-    assert(!chipa::mop548::ReadDismountForGuid(foreignDismount, foreignGuid));
+    MockGuid foreignGuid;
+    assert(!chipa::mop548::ReadDismountForGuid(foreignDismount, foreignGuid, DismountRawGuid() + 1));
     assert(foreignDismount.maskCalls == 1 && foreignDismount.byteCalls == 1);
 
     EmotePacket emotePacket;
