@@ -11,6 +11,8 @@ reviewable commit after this plan is green.
 from pathlib import Path
 import sys
 
+from audit_cpp14_root_closure import strip_cpp_non_code
+
 MODULE_ROOT = Path(__file__).resolve().parents[2]
 TARGET = MODULE_ROOT / "src/Bot/PlayerbotMgr.cpp"
 
@@ -58,7 +60,7 @@ def require_exactly_once(text: str, fragment: str, label: str) -> None:
 
 
 def count_marker(text: str, marker: str) -> int:
-    return text.count(marker)
+    return strip_cpp_non_code(text).count(marker)
 
 
 def main() -> int:
