@@ -19,6 +19,7 @@ on:
       - tools/chipa/check_mop548_spell_packet_contract.py
       - tools/chipa/check_mop548_unit_packet_contract.py
       - tools/chipa/check_mop548_chat_packet_contract.py
+      - tools/chipa/inventory_mop548_knockback_packet.py
       - tools/chipa/audit_objectguid_compat.py
       - .github/workflows/chipa_g2_contract.yml
   workflow_dispatch:
@@ -53,6 +54,9 @@ jobs:
 
       - name: Verify live MoP chat packet layouts
         run: python3 tools/chipa/check_mop548_chat_packet_contract.py .chipa-runtime
+
+      - name: Inventory live MoP knockback packet producer
+        run: python3 tools/chipa/inventory_mop548_knockback_packet.py .chipa-runtime
 
       - name: Inventory ObjectGuid compatibility blockers
         run: python3 tools/chipa/audit_objectguid_compat.py .chipa-runtime
