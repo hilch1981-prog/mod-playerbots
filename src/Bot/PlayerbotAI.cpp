@@ -36,6 +36,7 @@
 #include "MotionMaster.h"
 #include "MoveSplineInit.h"
 #include "NewRpgStrategy.h"
+#include "ObjectDefines.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "PerfMonitor.h"
@@ -1151,11 +1152,11 @@ void PlayerbotAI::HandleBotOutgoingPacket(WorldPacket const& packet)
         case SMSG_EMOTE:  // do not react to NPC emotes
         {
             WorldPacket p(packet);
-            ObjectGuid source;
+            uint64 source;
             uint32 emoteId;
             p.rpos(0);
-            p >> emoteId >> source;
-            if (source.IsPlayer())
+            chipa::mop548::ReadEmote(p, emoteId, source);
+            if (IS_PLAYER_GUID(source))
                 botOutgoingPacketHandlers.AddPacket(packet);
 
             return;
