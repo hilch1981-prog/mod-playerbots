@@ -1,0 +1,55 @@
+name: Chipa Apply PlayerbotAI C++14 Slice
+
+on:
+  push:
+    branches:
+      - mop-5.4.8-v2
+    paths:
+      - .github/workflows/chipa_apply_cpp14_playerbotai.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-reviewed-slice:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout module branch
+        uses: actions/checkout@v4
+        with:
+          ref: mop-5.4.8-v2
+          fetch-depth: 0
+
+      - name: Checkout Chipa SkyFire runtime baseline
+        uses: actions/checkout@v4
+        with:
+          repository: hilch1981-prog/MOP_V2_Repack
+          ref: repack-main
+          path: .chipa-runtime
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Apply reviewed PlayerbotAI C++14 slice
+        run: python3 tools/chipa/adapt_cpp14_playerbotai.py --write
+
+      - name: Verify adapted PlayerbotAI state
+        run: python3 tools/chipa/check_cpp14_playerbotai_plan.py
+
+      - name: Re-run C++14 root-closure ratchet
+        run: python3 tools/chipa/audit_cpp14_root_closure.py .chipa-runtime
+
+      - name: Verify no whitespace errors
+        run: git diff --check
+
+      - name: Commit reviewed source rewrite
+        run: |
+          if git diff --quiet -- src/Bot/PlayerbotAI.cpp; then
+            echo "PlayerbotAI C++14 slice already applied; no commit needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/Bot/PlayerbotAI.cpp
+          git commit -m "compat(chipa): apply PlayerbotAI C++14 closure slice"
+          git push origin HEAD:mop-5.4.8-v2
