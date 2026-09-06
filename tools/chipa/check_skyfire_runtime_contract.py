@@ -31,6 +31,7 @@ def main() -> int:
     root = args.runtime_root.resolve()
 
     object_h = read(root, "src/server/game/Entities/Object/Object.h")
+    byte_buffer_h = read(root, "src/server/shared/Packets/ByteBuffer.h")
     log_h = read(root, "src/server/shared/Logging/Log.h")
     script_mgr_h = read(root, "src/server/game/Scripting/ScriptMgr.h")
 
@@ -38,6 +39,16 @@ def main() -> int:
     # a stable low-part accessor instead of AzerothCore ObjectGuid::GetCounter.
     require(object_h, "uint64 GetGUID() const", "Object.h GUID surface")
     require(object_h, "uint32 GetGUIDLow() const", "Object.h GUID surface")
+
+    # Packet-side GUIDs are intentionally a different target type. Gameplay
+    # objects expose uint64, while ByteBuffer owns a lightweight ObjectGuid that
+    # converts back to uint64 and is consumed by ReadGuidMask/ReadGuidBytes.
+    # This distinction is the contract behind the staged MoP packet readers.
+    require(byte_buffer_h, "struct ObjectGuid", "ByteBuffer.h packet GUID surface")
+    require(byte_buffer_h, "ObjectGuid(uint64 guid)", "ByteBuffer.h packet GUID surface")
+    require(byte_buffer_h, "operator uint64()", "ByteBuffer.h packet GUID conversion")
+    require(byte_buffer_h, "void ReadGuidMask(ObjectGuid& guid", "ByteBuffer.h packet GUID reader")
+    require(byte_buffer_h, "void ReadGuidBytes(ObjectGuid& guid", "ByteBuffer.h packet GUID reader")
 
     # PerfMonitor adaptation: SkyFire's logging surface is printf-varargs.
     require(log_h, "#define TC_LOG_INFO(filterType__, ...)", "Log.h logging surface")
@@ -49,6 +60,7 @@ def main() -> int:
     require(script_mgr_h, "virtual void OnUpdate(Player* /*player*/, uint32 /*diff*/) { }", "ScriptMgr.h PlayerScript update")
 
     print("PASS: SkyFire runtime exposes uint64 GUID + GetGUIDLow scheduler surface")
+    print("PASS: SkyFire ByteBuffer exposes packet ObjectGuid -> uint64 conversion + mask/byte readers")
     print("PASS: SkyFire runtime exposes TC_LOG_INFO printf-varargs logging surface")
     print("PASS: SkyFire PlayerScript exposes OnLogin/OnLogout/OnUpdate seams")
     print("NOTE: cross-repository static contract only; no runtime gate is promoted")
