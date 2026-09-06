@@ -48,6 +48,7 @@ POST_CPP14_PATTERNS = (
 # increase or newly introduced marker fails the contract.
 BLOCKER_CEILING = {
     ("src/Bot/PlayerbotAI.cpp", "std::string starts_with()/ends_with()"): 1,
+    ("src/Bot/PlayerbotAI.cpp", "structured binding"): 1,
     ("src/Bot/PlayerbotAI.cpp", "C++17 maybe_unused attribute"): 1,
     ("src/Bot/PlayerbotMgr.cpp", "unordered/container contains()"): 1,
     ("src/Bot/PlayerbotMgr.cpp", "std::string starts_with()/ends_with()"): 1,
