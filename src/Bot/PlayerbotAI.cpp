@@ -3759,20 +3759,20 @@ bool PlayerbotAI::CastSpell(uint32 spellId, Unit* target, Item* itemTarget)
             if (targets.GetUnitTarget())
             {
                 out << "Target: Unit (" << targets.GetUnitTarget()->GetName()
-                    << ", Low GUID: " << targets.GetUnitTarget()->GetGUID().GetCounter()
-                    << ", High GUID: " << static_cast<uint32>(targets.GetUnitTarget()->GetGUID().GetHigh()) << "), ";
+                    << ", Low GUID: " << targets.GetUnitTarget()->GetGUIDLow()
+                    << ", High GUID: " << static_cast<uint32>(targets.GetUnitTarget()->GetGUIDHigh()) << "), ";
             }
 
             if (targets.GetGOTarget())
             {
-                out << "Target: GameObject (Low GUID: " << targets.GetGOTarget()->GetGUID().GetCounter()
-                    << ", High GUID: " << static_cast<uint32>(targets.GetGOTarget()->GetGUID().GetHigh()) << "), ";
+                out << "Target: GameObject (Low GUID: " << targets.GetGOTarget()->GetGUIDLow()
+                    << ", High GUID: " << static_cast<uint32>(targets.GetGOTarget()->GetGUIDHigh()) << "), ";
             }
 
             if (targets.GetItemTarget())
             {
-                out << "Target: Item (Low GUID: " << targets.GetItemTarget()->GetGUID().GetCounter()
-                    << ", High GUID: " << static_cast<uint32>(targets.GetItemTarget()->GetGUID().GetHigh()) << "), ";
+                out << "Target: Item (Low GUID: " << targets.GetItemTarget()->GetGUIDLow()
+                    << ", High GUID: " << static_cast<uint32>(targets.GetItemTarget()->GetGUIDHigh()) << "), ";
             }
 
             // Check if bot is in trade mode
@@ -3783,8 +3783,8 @@ bool PlayerbotAI::CastSpell(uint32 spellId, Unit* target, Item* itemTarget)
                 if (tradeItem)
                 {
                     out << "Trade Item: " << tradeItem->GetEntry()
-                        << " (Low GUID: " << tradeItem->GetGUID().GetCounter()
-                        << ", High GUID: " << static_cast<uint32>(tradeItem->GetGUID().GetHigh()) << "), ";
+                        << " (Low GUID: " << tradeItem->GetGUIDLow()
+                        << ", High GUID: " << static_cast<uint32>(tradeItem->GetGUIDHigh()) << "), ";
                 }
                 else
                 {
@@ -4485,7 +4485,7 @@ uint32 PlayerbotAI::GetFixedBotNumber(uint32 maxNum)
         return 0;
 
     // Deterministic pseudo-random hash based on the bot GUID evenly distributed across active slots
-    uint32 id = bot->GetGUID().GetCounter();
+    uint32 id = bot->GetGUIDLow();
     uint32 h = id;
     h ^= h >> 16;
     h *= 0x7feb352d;
@@ -4778,7 +4778,7 @@ bool PlayerbotAI::AllowActivity(ActivityType activityType, bool checkNow)
         allowActiveCheckTimer[activityIndex] = getMSTime();
 
     // 4500ms base + 0–499ms per-bot offset = 4500–4999ms, capping at just under 5 seconds
-    uint32 offset = bot->GetGUID().GetCounter() % 500;
+    uint32 offset = bot->GetGUIDLow() % 500;
 
     if (!checkNow && getMSTime() < (allowActiveCheckTimer[activityIndex] + 4500 + offset))
         return allowActive[activityIndex];
