@@ -9,6 +9,7 @@ on:
       - src/Bot/Engine/PlayerbotAIBase.cpp
       - src/Bot/Engine/PlayerbotAIBase.h
       - src/Bot/PlayerbotAIConfig.h
+      - src/Bot/Debug/PerfMonitor.cpp
       - src/Bot/Debug/PerfMonitor.h
       - tools/chipa/check_donor_compile_probe_contract.py
       - .github/workflows/chipa_donor_compile_probe.yml
@@ -81,18 +82,20 @@ jobs:
             -DCHIPA_PLAYERBOT_DONOR_COMPILE_PROBE=ON \
             2>&1 | tee ../configure-donor-probe.log
           grep -F 'module: mod-playerbots' ../configure-donor-probe.log
-          grep -F 'donor compile probe: PlayerbotAIBase.cpp' ../configure-donor-probe.log
+          grep -F 'donor compile probe: PlayerbotAIBase.cpp + PerfMonitor.cpp' ../configure-donor-probe.log
 
-      - name: Locate and compile only PlayerbotAIBase object
+      - name: Locate and compile scheduler closure objects
         working-directory: runtime
         shell: bash
         run: |
           set -euxo pipefail
-          mapfile -t probe_targets < <(ninja -C build-donor-probe -t targets all | awk -F: '/PlayerbotAIBase\.cpp\.o:/ {print $1}')
-          test "${#probe_targets[@]}" -eq 1
-          printf '%s\n' "${probe_targets[0]}" | tee ../probe-target.txt
+          mapfile -t base_targets < <(ninja -C build-donor-probe -t targets all | awk -F: '/PlayerbotAIBase\.cpp\.o:/ {print $1}')
+          mapfile -t perf_targets < <(ninja -C build-donor-probe -t targets all | awk -F: '/PerfMonitor\.cpp\.o:/ {print $1}')
+          test "${#base_targets[@]}" -eq 1
+          test "${#perf_targets[@]}" -eq 1
+          printf '%s\n' "${base_targets[0]}" "${perf_targets[0]}" | tee ../probe-targets.txt
           set -o pipefail
-          ninja -C build-donor-probe "${probe_targets[0]}" 2>&1 | tee ../build-donor-probe.log
+          ninja -C build-donor-probe "${base_targets[0]}" "${perf_targets[0]}" 2>&1 | tee ../build-donor-probe.log
 
       - name: Upload donor compile evidence
         if: always()
@@ -104,5 +107,5 @@ jobs:
             module-head.txt
             runtime-head.txt
             configure-donor-probe.log
-            probe-target.txt
+            probe-targets.txt
             build-donor-probe.log
