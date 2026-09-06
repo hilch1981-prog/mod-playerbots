@@ -1271,7 +1271,7 @@ void PlayerbotAI::HandleBotOutgoingPacket(WorldPacket const& packet)
                         }
                     }
 
-                    QueueChatResponse(ChatQueuedReply{msgtype, guid1.GetCounter(), guid2.GetCounter(), message,
+                    QueueChatResponse(ChatQueuedReply{msgtype, GUID_LOPART(static_cast<uint64>(guid1)), GUID_LOPART(static_cast<uint64>(guid2)), message,
                                                       chanName, name,
                                                       time(nullptr) + urand(inCombat ? 10 : 5, inCombat ? 25 : 15)});
                     GetAiObjectContext()->GetValue<time_t>("last said", "chat")->Set(time(0) + urand(5, 25));
