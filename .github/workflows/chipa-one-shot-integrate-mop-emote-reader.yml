@@ -30,11 +30,11 @@ jobs:
           path = Path('src/Bot/PlayerbotAI.cpp')
           text = path.read_text(encoding='utf-8')
 
-          include_anchor = '#include "ObjectAccessor.h"\n'
+          include_anchor = '#include "ObjectGuid.h"\n'
           if '#include "ObjectDefines.h"\n' not in text:
               if text.count(include_anchor) != 1:
-                  raise SystemExit(f'expected one ObjectAccessor include anchor, found {text.count(include_anchor)}')
-              text = text.replace(include_anchor, include_anchor + '#include "ObjectDefines.h"\n', 1)
+                  raise SystemExit(f'expected one ObjectGuid include anchor, found {text.count(include_anchor)}')
+              text = text.replace(include_anchor, '#include "ObjectDefines.h"\n' + include_anchor, 1)
 
           old = '''            WorldPacket p(packet);\n            ObjectGuid source;\n            uint32 emoteId;\n            p.rpos(0);\n            p >> emoteId >> source;\n            if (source.IsPlayer())\n                botOutgoingPacketHandlers.AddPacket(packet);\n'''
           new = '''            WorldPacket p(packet);\n            uint64 source;\n            uint32 emoteId;\n            p.rpos(0);\n            chipa::mop548::ReadEmote(p, emoteId, source);\n            if (IS_PLAYER_GUID(source))\n                botOutgoingPacketHandlers.AddPacket(packet);\n'''
