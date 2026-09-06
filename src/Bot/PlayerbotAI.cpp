@@ -31,6 +31,8 @@
 #include "LogLevelAction.h"
 #include "LootObjectStack.h"
 #include "MapMgr.h"
+#include "Mop548SpellPacketCompat.h"
+#include "Mop548UnitPacketCompat.h"
 #include "MotionMaster.h"
 #include "MoveSplineInit.h"
 #include "NewRpgStrategy.h"
@@ -1127,12 +1129,10 @@ void PlayerbotAI::HandleBotOutgoingPacket(WorldPacket const& packet)
             WorldPacket p(packet);
             p.rpos(0);
             ObjectGuid casterGuid;
-            p >> casterGuid.ReadAsPacked();
-            if (casterGuid != bot->GetGUID())
-                return;
             uint8 count, result;
             uint32 spellId;
-            p >> count >> spellId >> result;
+            if (!chipa::mop548::ReadSpellFailureForCaster(p, casterGuid, bot->GetGUID(), result, spellId, count))
+                return;
             SpellInterrupted(spellId);
             return;
         }
@@ -1141,12 +1141,9 @@ void PlayerbotAI::HandleBotOutgoingPacket(WorldPacket const& packet)
             WorldPacket p(packet);
             p.rpos(0);
             ObjectGuid casterGuid;
-            p >> casterGuid.ReadAsPacked();
-            if (casterGuid != bot->GetGUID())
-                return;
-
             uint32 delaytime;
-            p >> delaytime;
+            if (!chipa::mop548::ReadSpellDelayedForCaster(p, casterGuid, bot->GetGUID(), delaytime))
+                return;
             if (delaytime <= 1000)
                 IncreaseNextCheckDelay(delaytime);
             return;
@@ -1376,8 +1373,7 @@ void PlayerbotAI::HandleBotOutgoingPacket(WorldPacket const& packet)
             WorldPacket p(packet);
             p.rpos(0);
             ObjectGuid guid;
-            p >> guid.ReadAsPacked();
-            if (guid != bot->GetGUID())
+            if (!chipa::mop548::ReadDismountForGuid(p, guid, bot->GetGUID()))
                 return;
             CheckMountStateAction::CompleteDismount(bot);
             return;
