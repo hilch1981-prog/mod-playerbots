@@ -40,14 +40,44 @@ struct DismountPacket
     }
 };
 
+struct EmotePacket
+{
+    int reads = 0;
+
+    EmotePacket& operator>>(std::uint32_t& value)
+    {
+        assert(reads == 0);
+        value = 77;
+        ++reads;
+        return *this;
+    }
+
+    EmotePacket& operator>>(std::uint64_t& value)
+    {
+        assert(reads == 1);
+        value = UINT64_C(0x0070000000001234);
+        ++reads;
+        return *this;
+    }
+};
+
 int main()
 {
     MockGuid guid;
-    DismountPacket packet;
-    chipa::mop548::ReadDismount(packet, guid);
+    DismountPacket dismountPacket;
+    chipa::mop548::ReadDismount(dismountPacket, guid);
 
-    assert(packet.maskCalls == 1);
-    assert(packet.byteCalls == 1);
+    assert(dismountPacket.maskCalls == 1);
+    assert(dismountPacket.byteCalls == 1);
     for (int i = 0; i < 8; ++i)
         assert(guid[i] == static_cast<std::uint8_t>(0x30 + i));
+
+    EmotePacket emotePacket;
+    std::uint32_t emoteId = 0;
+    std::uint64_t sourceGuid = 0;
+    chipa::mop548::ReadEmote(emotePacket, emoteId, sourceGuid);
+
+    assert(emotePacket.reads == 2);
+    assert(emoteId == 77);
+    assert(sourceGuid == UINT64_C(0x0070000000001234));
 }
