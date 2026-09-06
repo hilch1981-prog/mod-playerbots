@@ -43,6 +43,21 @@ def require(text: str, token: str, where: str) -> None:
         raise AssertionError(f"{where}: missing required token: {token}")
 
 
+def object_guid_names(text: str) -> set[str]:
+    """Return local ObjectGuid declarators, including comma-separated names."""
+    names: set[str] = set()
+    for match in re.finditer(r"\bObjectGuid\s+([^;]+);", text):
+        declaration = match.group(1)
+        for declarator in declaration.split(","):
+            candidate = declarator.strip()
+            candidate = candidate.split("=", 1)[0].strip()
+            candidate = candidate.lstrip("*& ")
+            name_match = re.match(r"([A-Za-z_]\w*)\b", candidate)
+            if name_match:
+                names.add(name_match.group(1))
+    return names
+
+
 def modern_guid_findings(relative: str, text: str) -> list[tuple[str, str, int]]:
     findings: list[tuple[str, str, int]] = []
 
@@ -52,8 +67,10 @@ def modern_guid_findings(relative: str, text: str) -> list[tuple[str, str, int]]
 
     # Audit modern helper calls only on variables declared as ObjectGuid. A
     # broad `.IsPlayer()` scan creates false positives for valid SkyFire
-    # WorldObject/Unit calls such as `obj->IsPlayer()`.
-    names = set(re.findall(r"\bObjectGuid\s+([A-Za-z_]\w*)\b", text))
+    # WorldObject/Unit calls such as `obj->IsPlayer()`. Parse comma-separated
+    # declarations too (for example `ObjectGuid guid1, guid2;`) so the inventory
+    # does not silently miss a second packet GUID.
+    names = object_guid_names(text)
     for name in sorted(names):
         for method in MODERN_GUID_METHODS:
             pattern = rf"\b{re.escape(name)}\s*\.\s*{method}\s*\("
@@ -81,6 +98,7 @@ def main() -> int:
 
     bytebuffer_h = read(runtime_root, "src/server/shared/Packets/ByteBuffer.h")
     object_h = read(runtime_root, "src/server/game/Entities/Object/Object.h")
+    object_defines_h = read(runtime_root, "src/server/game/Entities/Object/ObjectDefines.h")
     manifest = read(MODULE_ROOT, "chipa_module.cmake")
     bootstrap = read(MODULE_ROOT, "src/chipa/ModuleBootstrap.cpp")
     playerbot_ai = read(MODULE_ROOT, "src/Bot/PlayerbotAI.cpp")
@@ -101,17 +119,28 @@ def main() -> int:
     require(object_h, "uint64 GetGUID() const", "SkyFire Object.h GUID surface")
     require(object_h, "uint32 GetGUIDLow() const", "SkyFire Object.h GUID surface")
     require(object_h, "uint32 GetGUIDHigh() const", "SkyFire Object.h GUID surface")
+    require(object_defines_h, "uint32 GUID_LOPART(uint64 x)", "SkyFire ObjectDefines.h GUID low-part surface")
 
     # PlayerbotAI gameplay-object accesses were deliberately translated from
     # modern chained ObjectGuid helpers to SkyFire's native Object accessors.
-    # Pin that progress here so a donor refresh cannot silently reintroduce
-    # GetGUID().GetCounter()/GetHigh() in this integration-critical root.
+    # Packet chat GUIDs are converted to raw uint64 and then reduced through
+    # the target GUID_LOPART(uint64) helper. Pin both adaptations so a donor
+    # refresh cannot silently restore modern ObjectGuid counter methods.
     for method in ("GetCounter", "GetHigh"):
         pattern = rf"GetGUID\s*\(\s*\)\s*\.\s*{method}\s*\("
         if re.search(pattern, playerbot_ai):
             raise AssertionError(
                 f"PlayerbotAI.cpp: modern chained GetGUID().{method}() accessor reintroduced"
             )
+
+    if ".GetCounter()" in playerbot_ai:
+        raise AssertionError("PlayerbotAI.cpp: modern ObjectGuid GetCounter() accessor reintroduced")
+
+    require(
+        playerbot_ai,
+        "GUID_LOPART(static_cast<uint64>(guid1)), GUID_LOPART(static_cast<uint64>(guid2))",
+        "PlayerbotAI.cpp chat GUID low-part adaptation",
+    )
 
     findings: list[tuple[str, str, int]] = []
     for relative in DONOR_ROOTS:
@@ -126,6 +155,8 @@ def main() -> int:
 
     print("PASS: target ObjectGuid model verified from live SkyFire runtime sources")
     print("PASS: PlayerbotAI gameplay-object GUID chains use SkyFire GetGUIDLow/GetGUIDHigh accessors")
+    print("PASS: PlayerbotAI chat packet GUIDs use target GUID_LOPART(uint64) conversion")
+    print("PASS: ObjectGuid inventory recognizes comma-separated packet GUID declarations")
     if findings:
         print("PENDING: modern donor ObjectGuid helpers still require target-native adaptation:")
         for relative, marker, count in findings:
