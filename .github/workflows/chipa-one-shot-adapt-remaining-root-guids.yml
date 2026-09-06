@@ -51,7 +51,8 @@ jobs:
               'guid.IsPlayer()': 1,
               'guid.GetCounter()': 4,
               'playerGuid.GetCounter()': 1,
-              'ObjectGuid::LowType lowguid': 1,
+              'ObjectGuid::LowType': 2,
+              'ObjectGuid::Create<HighGuid::Player>(lowGuid)': 1,
           }
           for token, expected in expected_counts.items():
               count = mgr.count(token)
@@ -64,8 +65,14 @@ jobs:
           mgr = mgr.replace('guid.GetCounter()', 'GUID_LOPART(static_cast<uint64>(guid))')
           mgr = mgr.replace('playerGuid.GetCounter()', 'GUID_LOPART(static_cast<uint64>(playerGuid))')
           mgr = mgr.replace('ObjectGuid::LowType lowguid', 'uint32 lowguid')
+          mgr = mgr.replace('GetPlayerBot(ObjectGuid::LowType lowGuid)', 'GetPlayerBot(uint32 lowGuid)')
+          mgr = mgr.replace(
+              'ObjectGuid playerGuid = ObjectGuid::Create<HighGuid::Player>(lowGuid);',
+              'ObjectGuid playerGuid(MAKE_NEW_GUID(lowGuid, 0, HIGHGUID_PLAYER));',
+          )
 
-          for forbidden in ('ObjectGuid::Empty', '.IsEmpty()', '.IsPlayer()', '.GetCounter()', 'ObjectGuid::LowType'):
+          for forbidden in ('ObjectGuid::Empty', '.IsEmpty()', '.IsPlayer()', '.GetCounter()', 'ObjectGuid::LowType',
+                            'ObjectGuid::Create<'):
               if forbidden in mgr:
                   raise SystemExit(f'forbidden modern GUID marker remains in PlayerbotMgr.cpp: {forbidden}')
 
@@ -77,6 +84,8 @@ jobs:
           grep -F 'IS_PLAYER_GUID(static_cast<uint64>(guid))' src/Bot/PlayerbotMgr.cpp
           grep -F 'GUID_LOPART(static_cast<uint64>(playerGuid))' src/Bot/PlayerbotMgr.cpp
           grep -F 'uint32 lowguid = GUID_LOPART(static_cast<uint64>(guid));' src/Bot/PlayerbotMgr.cpp
+          grep -F 'PlayerbotHolder::GetPlayerBot(uint32 lowGuid) const' src/Bot/PlayerbotMgr.cpp
+          grep -F 'ObjectGuid playerGuid(MAKE_NEW_GUID(lowGuid, 0, HIGHGUID_PLAYER));' src/Bot/PlayerbotMgr.cpp
           grep -F 'ProcessBotCommand(cmdStr, member, ObjectGuid(), true, -1, -1)' src/Bot/PlayerbotMgr.cpp
 
       - name: Commit adaptation and remove one-shot workflow
