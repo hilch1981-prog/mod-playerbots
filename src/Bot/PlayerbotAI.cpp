@@ -875,8 +875,8 @@ void PlayerbotAI::Reset(bool full)
     aiObjectContext->GetValue<Unit*>("old target")->Set(nullptr);
     aiObjectContext->GetValue<Unit*>("current target")->Set(nullptr);
     aiObjectContext->GetValue<GuidVector>("prioritized targets")->Reset();
-    aiObjectContext->GetValue<ObjectGuid>("pull target")->Set(ObjectGuid::Empty);
-    aiObjectContext->GetValue<ObjectGuid>("pull strategy target")->Set(ObjectGuid::Empty);
+    aiObjectContext->GetValue<ObjectGuid>("pull target")->Set(ObjectGuid());
+    aiObjectContext->GetValue<ObjectGuid>("pull strategy target")->Set(ObjectGuid());
     aiObjectContext->GetValue<GuidPosition>("rpg target")->Set(GuidPosition());
     aiObjectContext->GetValue<LootObject>("loot target")->Set(LootObject());
     aiObjectContext->GetValue<uint32>("lfg proposal")->Set(0);
@@ -1492,8 +1492,8 @@ void PlayerbotAI::DoNextAction(bool min)
 
         aiObjectContext->GetValue<Unit*>("current target")->Set(nullptr);
         aiObjectContext->GetValue<Unit*>("enemy player target")->Set(nullptr);
-        aiObjectContext->GetValue<ObjectGuid>("pull target")->Set(ObjectGuid::Empty);
-        aiObjectContext->GetValue<ObjectGuid>("pull strategy target")->Set(ObjectGuid::Empty);
+        aiObjectContext->GetValue<ObjectGuid>("pull target")->Set(ObjectGuid());
+        aiObjectContext->GetValue<ObjectGuid>("pull strategy target")->Set(ObjectGuid());
         aiObjectContext->GetValue<LootObject>("loot target")->Set(LootObject());
 
         ChangeEngine(BOT_STATE_DEAD);
@@ -1836,7 +1836,7 @@ bool PlayerbotAI::PlayEmote(uint32 emote)
     data << EmoteAction::GetNumberOfEmoteVariants((TextEmotes)emote, bot->getRace(), bot->getGender());
     data << ((master && (ServerFacade::instance().GetDistance2d(bot, master) < 30.0f) && urand(0, 1)) ? master->GetGUID()
              : (bot->GetTarget() && urand(0, 1))                                            ? bot->GetTarget()
-                                                                                            : ObjectGuid::Empty);
+                                                                                            : uint64(0));
     bot->GetSession()->HandleTextEmoteOpcode(data);
 
     return false;
@@ -2391,7 +2391,7 @@ bool PlayerbotAI::IsMainTank(Player* player, bool ignoreMemberFlag)
     if (!group)
         return IsTank(player);
 
-    ObjectGuid mainTank = ObjectGuid();
+    uint64 mainTank = 0;
 
     // (1) Check for main tank flag (any class or spec)
     if (!ignoreMemberFlag)
@@ -2407,7 +2407,7 @@ bool PlayerbotAI::IsMainTank(Player* player, bool ignoreMemberFlag)
             }
         }
 
-        if (mainTank != ObjectGuid::Empty)
+        if (mainTank != 0)
             return player->GetGUID() == mainTank;
     }
 
@@ -5883,7 +5883,7 @@ std::vector<std::pair<const Quest*, uint32>> PlayerbotAI::GetCurrentQuestsRequir
 }
 
 //  on self
-void PlayerbotAI::ImbueItem(Item* item) { ImbueItem(item, TARGET_FLAG_NONE, ObjectGuid::Empty); }
+void PlayerbotAI::ImbueItem(Item* item) { ImbueItem(item, TARGET_FLAG_NONE, ObjectGuid()); }
 
 //  item on unit
 void PlayerbotAI::ImbueItem(Item* item, Unit* target)
