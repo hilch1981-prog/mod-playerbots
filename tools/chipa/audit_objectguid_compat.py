@@ -25,6 +25,7 @@ DONOR_ROOTS = (
 
 MODERN_GUID_METHODS = (
     "ReadAsPacked",
+    "IsEmpty",
     "IsPlayer",
     "GetCounter",
     "GetHigh",
@@ -99,6 +100,7 @@ def main() -> int:
     bytebuffer_h = read(runtime_root, "src/server/shared/Packets/ByteBuffer.h")
     object_h = read(runtime_root, "src/server/game/Entities/Object/Object.h")
     object_defines_h = read(runtime_root, "src/server/game/Entities/Object/ObjectDefines.h")
+    group_h = read(runtime_root, "src/server/game/Groups/Group.h")
     manifest = read(MODULE_ROOT, "chipa_module.cmake")
     bootstrap = read(MODULE_ROOT, "src/chipa/ModuleBootstrap.cpp")
     playerbot_ai = read(MODULE_ROOT, "src/Bot/PlayerbotAI.cpp")
@@ -108,6 +110,7 @@ def main() -> int:
     # target-native packed/masked GUID helpers.
     for token in (
         "struct ObjectGuid",
+        "ObjectGuid() { _data.u64 = UI64LIT(0); }",
         "ObjectGuid(uint64 guid)",
         "operator uint64()",
         "void readPackGUID(uint64& guid)",
@@ -120,12 +123,15 @@ def main() -> int:
     require(object_h, "uint32 GetGUIDLow() const", "SkyFire Object.h GUID surface")
     require(object_h, "uint32 GetGUIDHigh() const", "SkyFire Object.h GUID surface")
     require(object_defines_h, "uint32 GUID_LOPART(uint64 x)", "SkyFire ObjectDefines.h GUID low-part surface")
+    require(group_h, "struct MemberSlot", "SkyFire Group.h member slot surface")
+    require(group_h, "uint64      guid;", "SkyFire Group.h member GUID surface")
 
     # PlayerbotAI gameplay-object accesses were deliberately translated from
     # modern chained ObjectGuid helpers to SkyFire's native Object accessors.
     # Packet chat GUIDs are converted to raw uint64 and then reduced through
-    # the target GUID_LOPART(uint64) helper. Pin both adaptations so a donor
-    # refresh cannot silently restore modern ObjectGuid counter methods.
+    # the target GUID_LOPART(uint64) helper. Empty packet/context GUIDs use the
+    # target zero-initializing ObjectGuid() constructor, while group member GUID
+    # comparisons use the target's native uint64 MemberSlot::guid type.
     for method in ("GetCounter", "GetHigh"):
         pattern = rf"GetGUID\s*\(\s*\)\s*\.\s*{method}\s*\("
         if re.search(pattern, playerbot_ai):
@@ -135,12 +141,18 @@ def main() -> int:
 
     if ".GetCounter()" in playerbot_ai:
         raise AssertionError("PlayerbotAI.cpp: modern ObjectGuid GetCounter() accessor reintroduced")
+    if "ObjectGuid::Empty" in playerbot_ai:
+        raise AssertionError("PlayerbotAI.cpp: modern ObjectGuid::Empty sentinel reintroduced")
 
     require(
         playerbot_ai,
         "GUID_LOPART(static_cast<uint64>(guid1)), GUID_LOPART(static_cast<uint64>(guid2))",
         "PlayerbotAI.cpp chat GUID low-part adaptation",
     )
+    require(playerbot_ai, 'GetValue<ObjectGuid>("pull target")->Set(ObjectGuid());',
+            "PlayerbotAI.cpp zero packet GUID adaptation")
+    require(playerbot_ai, "uint64 mainTank = 0;", "PlayerbotAI.cpp SkyFire group GUID adaptation")
+    require(playerbot_ai, ": uint64(0));", "PlayerbotAI.cpp raw zero text-emote GUID adaptation")
 
     findings: list[tuple[str, str, int]] = []
     for relative in DONOR_ROOTS:
@@ -156,7 +168,8 @@ def main() -> int:
     print("PASS: target ObjectGuid model verified from live SkyFire runtime sources")
     print("PASS: PlayerbotAI gameplay-object GUID chains use SkyFire GetGUIDLow/GetGUIDHigh accessors")
     print("PASS: PlayerbotAI chat packet GUIDs use target GUID_LOPART(uint64) conversion")
-    print("PASS: ObjectGuid inventory recognizes comma-separated packet GUID declarations")
+    print("PASS: PlayerbotAI empty GUID forms match target zero/raw uint64 semantics")
+    print("PASS: ObjectGuid inventory recognizes comma-separated packet GUID declarations and IsEmpty()")
     if findings:
         print("PENDING: modern donor ObjectGuid helpers still require target-native adaptation:")
         for relative, marker, count in findings:
