@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Validate the first semantics-preserving C++14 adaptation slice for PlayerbotMgr.
+"""Validate the complete reviewed C++14 adaptation slice for PlayerbotMgr.
 
 This checker deliberately does not rewrite the donor source. It proves that the
-three selected post-C++14 constructs still match the reviewed donor text and
-that their C++14 replacements remove exactly those blockers without changing
-the surrounding control-flow intent. Applying the source rewrite is a separate,
-reviewable commit after this plan is green.
+four audited post-C++14 constructs still match the reviewed donor text and that
+their C++14 replacements remove the entire audited PlayerbotMgr blocker set
+without changing the surrounding control-flow intent. Applying the source
+rewrite is a separate, reviewable commit after this plan is green.
 """
 
 from pathlib import Path
@@ -52,6 +52,9 @@ DEAD_SESSION_NEW = """        WorldSession* botWorldSessionPtr = bot->GetSession
 
 """
 
+STARTS_WITH_OLD = "else if (cmd.starts_with(\"init=\") && sscanf(cmd.c_str(), \"init=%d\", &gs) != -1)"
+STARTS_WITH_NEW = "else if (cmd.compare(0, 5, \"init=\") == 0 && sscanf(cmd.c_str(), \"init=%d\", &gs) != -1)"
+
 
 def require_exactly_once(text: str, fragment: str, label: str) -> None:
     count = text.count(fragment)
@@ -72,15 +75,18 @@ def main() -> int:
     require_exactly_once(original, CONTAINS_OLD, "contains adaptation")
     require_exactly_once(original, LOADING_LOOP_OLD, "structured-binding adaptation")
     require_exactly_once(original, DEAD_SESSION_OLD, "maybe_unused dead-session adaptation")
+    require_exactly_once(original, STARTS_WITH_OLD, "starts_with adaptation")
 
     preview = original.replace(CONTAINS_OLD, CONTAINS_NEW, 1)
     preview = preview.replace(LOADING_LOOP_OLD, LOADING_LOOP_NEW, 1)
     preview = preview.replace(DEAD_SESSION_OLD, DEAD_SESSION_NEW, 1)
+    preview = preview.replace(STARTS_WITH_OLD, STARTS_WITH_NEW, 1)
 
     expected_deltas = {
         ".contains(": (1, 0),
         "for (auto const& [": (1, 0),
         "[[maybe_unused]]": (1, 0),
+        ".starts_with(": (1, 0),
     }
     for marker, expected in expected_deltas.items():
         actual = (count_marker(original, marker), count_marker(preview, marker))
@@ -102,9 +108,14 @@ def main() -> int:
     if "delete botWorldSessionPtr;" not in preview:
         raise AssertionError("active WorldSession cleanup was lost in the C++14 preview")
 
+    # std::string::compare is available in C++14 and preserves the donor's
+    # five-character prefix gate before sscanf attempts to parse the gear score.
+    if STARTS_WITH_NEW not in preview:
+        raise AssertionError("init= prefix guard was not preserved in the C++14 preview")
+
     print("PASS: reviewed PlayerbotMgr C++14 adaptation fragments still match exactly")
-    print("PASS: preview removes contains/structured-binding/maybe_unused blockers 1 -> 0")
-    print("PASS: loading-count and active instant-logout semantics remain represented")
+    print("PASS: preview removes all four audited PlayerbotMgr post-C++14 blockers 1 -> 0")
+    print("PASS: loading-count, init= prefix gate, and active instant-logout semantics remain represented")
     print("PENDING: preview only; donor source is not rewritten and no gate is promoted")
     return 0
 
