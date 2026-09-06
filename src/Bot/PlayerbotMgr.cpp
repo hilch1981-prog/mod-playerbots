@@ -45,7 +45,7 @@ class BotInitGuard
 public:
     BotInitGuard(ObjectGuid guid) : guid(guid), active(false)
     {
-        if (!botsBeingInitialized.contains(guid))
+        if (botsBeingInitialized.find(guid) == botsBeingInitialized.end())
         {
             botsBeingInitialized.insert(guid);
             active = true;
@@ -125,9 +125,9 @@ void PlayerbotHolder::AddPlayerBot(ObjectGuid playerGuid, uint32 masterAccountId
             return;
         }
         uint32 loadingForMaster = 0;
-        for (auto const& [guid, acctId] : botLoading)
+        for (auto const& loadingEntry : botLoading)
         {
-            if (acctId == masterAccountId)
+            if (loadingEntry.second == masterAccountId)
                 ++loadingForMaster;
         }
         uint32 count = mgr->GetPlayerbotsCount() + loadingForMaster;
@@ -368,14 +368,9 @@ void PlayerbotHolder::LogoutPlayerBot(ObjectGuid guid)
         bot->SaveToDB(false, false);
 
         WorldSession* botWorldSessionPtr = bot->GetSession();
-        [[maybe_unused]] WorldSession* masterWorldSessionPtr = nullptr;     // Remove [[maybe_unused]] tag if timed logout implemented.
 
         if (botWorldSessionPtr->isLogingOut())
             return;
-
-        Player* master = botAI->GetMaster();
-        if (master)
-            masterWorldSessionPtr = master->GetSession();
 
         // TODO: Review whether or not to implement timed logout.
         // Unused block. Useful only for timed logout.
@@ -811,7 +806,7 @@ std::string const PlayerbotHolder::ProcessBotCommand(std::string const cmd, Obje
                 return "ok, gear score limit: " + std::to_string(mixedGearScore / PlayerbotAI::GetItemScoreMultiplier(ItemQualities(ITEM_QUALITY_EPIC))) +
                        "(for epic)";
             }
-            else if (cmd.starts_with("init=") && sscanf(cmd.c_str(), "init=%d", &gs) != -1)
+            else if (cmd.compare(0, 5, "init=") == 0 && sscanf(cmd.c_str(), "init=%d", &gs) != -1)
             {
                 PlayerbotFactory factory(bot, master->GetLevel(), ITEM_QUALITY_LEGENDARY, gs);
                 factory.Randomize(false);
