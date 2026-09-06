@@ -22,8 +22,8 @@ set(CHIPA_MODULE_INCLUDE_DIRS
 
 # Compile-only donor closure probe. This is deliberately OFF by default and
 # does not activate DonorPlayerbotBackend.cpp or change runtime behavior.
-# CI may enable it to ask the real Chipa/SkyFire compiler whether the next
-# reviewed closure unit is source-compatible before that unit enters the
+# CI may enable it to ask the real Chipa/SkyFire compiler whether the reviewed
+# scheduler closure is source-compatible before those units enter the
 # production manifest. Link/runtime evidence is still required later.
 option(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE
   "Compile the reviewed PlayerBot donor closure probe without activating it"
@@ -32,6 +32,7 @@ option(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE
 if(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE)
   list(APPEND CHIPA_MODULE_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/src/Bot/Engine/PlayerbotAIBase.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/Bot/Debug/PerfMonitor.cpp"
   )
   list(APPEND CHIPA_MODULE_INCLUDE_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/src"
@@ -39,5 +40,5 @@ if(CHIPA_PLAYERBOT_DONOR_COMPILE_PROBE)
     "${CMAKE_CURRENT_LIST_DIR}/src/Bot/Engine"
     "${CMAKE_CURRENT_LIST_DIR}/src/Bot/Debug"
   )
-  message(STATUS "  + mod-playerbots donor compile probe: PlayerbotAIBase.cpp")
+  message(STATUS "  + mod-playerbots donor compile probe: PlayerbotAIBase.cpp + PerfMonitor.cpp")
 endif()
