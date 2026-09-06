@@ -65,10 +65,17 @@ def read(root: Path, relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def strip_cpp_comments(text: str) -> str:
+    """Remove comments before syntax counting so examples do not become blockers."""
+    without_blocks = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
+    return "\n".join(line.split("//", 1)[0] for line in without_blocks.splitlines())
+
+
 def findings_for(relative: str, text: str) -> list[tuple[str, str, int]]:
+    code = strip_cpp_comments(text)
     findings: list[tuple[str, str, int]] = []
     for label, pattern in POST_CPP14_PATTERNS:
-        count = len(pattern.findall(text))
+        count = len(pattern.findall(code))
         if count:
             findings.append((relative, label, count))
     return findings
